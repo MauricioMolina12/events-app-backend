@@ -115,7 +115,7 @@ describe('events.repository', () => {
     );
 
     expect(error.status).toBe(409);
-    expect(error.code).toBe(ErrorCode.VALIDATION_ERROR);
+    expect(error.code).toBe(ErrorCode.EVENT_SLUG_ALREADY_USED);
   });
 
   it('actualiza solo los campos indicados', async () => {
@@ -163,6 +163,7 @@ describe('establishments.repository', () => {
     );
 
     expect(error.status).toBe(409);
+    expect(error.code).toBe(ErrorCode.ESTABLISHMENT_CODE_ALREADY_USED);
   });
 
   it('lista sedes activas ordenadas por nombre', async () => {

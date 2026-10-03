@@ -103,7 +103,9 @@ describe('traduccion de violaciones de restricciones', () => {
     );
 
     expect(isUniqueViolation(unique)).toBe(true);
-    expect(resolveConstraintViolation(unique)?.code).toBe(ErrorCode.VALIDATION_ERROR);
+    expect(resolveConstraintViolation(unique)?.code).toBe(
+      ErrorCode.ESTABLISHMENT_CODE_ALREADY_USED,
+    );
     expect(resolveConstraintViolation(check)?.code).toBe(ErrorCode.TITULAR_CAPACITY_EXCEEDED);
   });
 });

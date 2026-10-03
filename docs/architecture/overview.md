@@ -276,18 +276,53 @@ una opcion.
 
 ---
 
+### Catalogo y cupos
+
+- **Acceso (decision #22)**: `admin` y `operator` leen el catalogo; solo `admin`
+  escribe. El operador necesita eventos y sedes para preparar la jornada, pero no
+  dimensiona cupos.
+- **Estados (decision #23)**: las transiciones se declaran en una tabla del servicio
+  (`EVENT_STATUS_TRANSITIONS` y `PARTICIPATION_STATUS_TRANSITIONS`) en lugar de aceptar
+  cualquier `status`; `archived` y `cancelled` son terminales. Un salto no admitido
+  responde 409 con `STATUS_TRANSITION_INVALID`.
+- **Validacion antes de escribir**: el formato del slug y del codigo, la zona IANA (se
+  sondea con `Intl.DateTimeFormat`) y la coherencia de ventanas se comprueban en el
+  esquema o en el servicio, de modo que el cliente recibe 422 con el campo implicado en
+  vez de un 500 por restriccion. Los indices unicos siguen siendo la red de seguridad, y
+  cada uno tiene su codigo de negocio: `EVENT_SLUG_ALREADY_USED` y
+  `ESTABLISHMENT_CODE_ALREADY_USED`, igual que `EMAIL_ALREADY_USED` en las cuentas.
+- **Cupos (decision #26)**: `POST /participations` fija el cupo inicial. Con registros
+  confirmados, cualquier cambio de cupo responde `CAPACITY_ADJUSTMENT_REQUIRED` porque
+  toda redistribucion pasa por `capacity_adjustments` (decision #4); cancelar una sede
+  con registros responde `PARTICIPATION_HAS_REGISTRATIONS` y para cortar el registro se
+  cierra la sede (`closed`), que conserva lo ya confirmado.
+- **Composicion entre modulos**: `participations` resuelve la sede con el servicio de
+  establecimientos (`listEstablishmentSummaries`) en una consulta por pagina, no una por
+  fila, y nunca consulta `establishments` desde su repositorio. La dependencia va en una
+  sola direccion (`participations` -> `events` y `establishments`), lo que mantiene al
+  evento sin saber quien lo usa.
+- **Sin borrado (decision #25)**: un evento se archiva y una sede se desactiva; las
+  participaciones, registros y accesos historicos siguen apuntando a ellas.
+
+---
+
 ## 9. Pruebas
 
 - Se ejecutan dentro de workerd con `@cloudflare/vitest-plugin` + Miniflare, usando
   la misma configuracion de `wrangler.jsonc` (incluido el binding D1).
 - `tests/unit`: unidades puras (errores, traduccion de restricciones, utilidades,
-  codificacion, PBKDF2, tokens de sesion, guards de rol, politica de contrasenas y
-  ficha publica de usuario).
+  codificacion, PBKDF2, tokens de sesion, guards de rol, politica de contrasenas, ficha
+  publica de usuario y, desde la Fase 4, las transiciones de estado del catalogo, la
+  validacion de zonas y ventanas, la paginacion compartida y los mapeos de eventos,
+  sedes y participaciones).
 - `tests/integration`: la app completa via `SELF.fetch` (incluido el ciclo
   `login` -> `me` -> `logout` con cookie y sesion reales en D1) y, desde la Fase 3, los
   repositorios contra una **D1 real** dentro de workerd (sin dobles de prueba). El panel
   de usuarios se cubre de extremo a extremo: autorizacion por rol, paginacion, proteccion
   del ultimo administrador y revocacion de sesiones al desactivar o rotar la contrasena.
+  El catalogo (eventos, sedes y participaciones) tambien: matriz de autorizacion, formato
+  de los identificadores, ciclo de vida de los estados, cupo disponible y protecciones
+  sobre los registros confirmados.
 - Las migraciones de `migrations/` se aplican con `applyD1Migrations` en
   `tests/setup/`, que recibe el SQL por el binding `TEST_MIGRATIONS` porque workerd
   no puede leer el sistema de archivos. `tests/helpers/database.ts` centraliza la
@@ -309,7 +344,7 @@ una opcion.
 | 1    | Analisis y decisiones de arquitectura (completada)                         |
 | 2    | Fundamentos: config, middleware, errores, health, OpenAPI, tests (completada) |
 | 3    | Esquema D1 completo, migraciones Drizzle y repositorios base (completada)  |
-| 4    | Auth con sesiones, RBAC, usuarios y CRUD de eventos/establecimientos (auth, RBAC y usuarios listos) |
+| 4    | Auth con sesiones, RBAC, usuarios y CRUD de eventos/establecimientos (auth, RBAC, usuarios y catalogo listos; falta el bootstrap del primer admin) |
 | 5    | Registro publico, QR, turnos, check-in y gestion de cupos                  |
 | 6    | Endurecimiento: rate limiting, observabilidad, despliegue y runbook        |
 
@@ -340,3 +375,8 @@ una opcion.
 | 19 | Baja logica de usuarios, sin `DELETE`           | Preserva la atribucion historica de eventos, cupos y accesos; el acceso se corta con `status: disabled`. |
 | 20 | Minimo de 12 caracteres para la contrasena      | Las cuentas nacen de un administrador o del bootstrap: la contrasena es la unica barrera, no un registro publico. |
 | 21 | Rotacion de contrasena revoca sesiones          | Cerrar todas las sesiones del titular hace efectivo el cambio tambien frente a un token robado. |
+| 22 | Lectura del catalogo para el staff autenticado   | El operador necesita eventos y sedes para preparar la jornada; el catalogo publico (solo `published`, con disponibilidad) nace con el registro de la Fase 5, cuando se conoce el payload que exige la inscripcion. |
+| 23 | Transiciones de estado explicitas               | Aceptar cualquier `status` permitiria reabrir un evento archivado o una sede cancelada; la tabla de transiciones vive en el servicio y un salto no admitido responde `STATUS_TRANSITION_INVALID`. |
+| 24 | `slug` y `code` inmutables                      | Son identificadores publicos y operativos que ya pueden estar impresos o compartidos: cambiarlos rompe enlaces, planillas y reportes. |
+| 25 | Sin `DELETE` en el catalogo                     | Un evento se archiva y una sede se desactiva; el `ON DELETE restrict` de las participaciones impide perder la trazabilidad de registros y accesos. |
+| 26 | Cupo editable solo sin registros confirmados    | Sin registros confirmados el cupo es configuracion; con ellos, el cambio responde `CAPACITY_ADJUSTMENT_REQUIRED` para forzar el flujo de aprobacion de la decision #4. |

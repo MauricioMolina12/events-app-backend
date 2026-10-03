@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, lt, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, eq, gt, lt, sql, type SQL } from 'drizzle-orm';
 import type { Database } from '../../db/client';
 import { withConstraintTranslation } from '../../db/constraints';
 import { newId } from '../../db/helpers';
@@ -37,6 +37,56 @@ export interface CreateParticipationInput {
 export interface UpdateCapacityInput {
   titularCapacity: number;
   companionCapacity: number;
+}
+
+/** Filtros del catalogo de participaciones. */
+export interface ParticipationFilters {
+  readonly eventId?: string;
+  readonly establishmentId?: string;
+  readonly status?: ParticipationStatus;
+}
+
+export interface ListParticipationsOptions extends ParticipationFilters {
+  limit?: number;
+  offset?: number;
+}
+
+/** Campos que la administracion del catalogo puede modificar de una sede. */
+export interface UpdateParticipationInput {
+  status?: ParticipationStatus;
+  titularCapacity?: number;
+  companionCapacity?: number;
+  registrationOpensAt?: Date | null;
+  registrationClosesAt?: Date | null;
+  checkInOpensAt?: Date | null;
+  checkInClosesAt?: Date | null;
+  notes?: string | null;
+}
+
+/** Limite por defecto de los listados; igual que el de los demas catalogos. */
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 200;
+
+/**
+ * Condiciones compartidas por el listado y su conteo.
+ *
+ * Un unico lugar para calcularlas evita que `meta.total` deje de corresponder con
+ * las filas devueltas.
+ */
+function filterConditions(filters: ParticipationFilters): SQL[] {
+  const conditions: SQL[] = [];
+
+  if (filters.eventId !== undefined) {
+    conditions.push(eq(eventEstablishments.eventId, filters.eventId));
+  }
+  if (filters.establishmentId !== undefined) {
+    conditions.push(eq(eventEstablishments.establishmentId, filters.establishmentId));
+  }
+  if (filters.status !== undefined) {
+    conditions.push(eq(eventEstablishments.status, filters.status));
+  }
+
+  return conditions;
 }
 
 export async function findParticipationById(
@@ -78,6 +128,42 @@ export async function listParticipationsByEvent(
     .from(eventEstablishments)
     .where(eq(eventEstablishments.eventId, eventId))
     .orderBy(asc(eventEstablishments.createdAt));
+}
+
+/**
+ * Listado paginado de participaciones.
+ *
+ * El orden (`created_at` y `id` como desempate) es estable para que dos filas
+ * creadas en el mismo milisegundo no intercambien posicion entre paginas.
+ */
+export async function listParticipations(
+  db: Database,
+  options: ListParticipationsOptions = {},
+): Promise<ParticipationRow[]> {
+  const limit = Math.min(options.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+  const conditions = filterConditions(options);
+
+  return db
+    .select()
+    .from(eventEstablishments)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(asc(eventEstablishments.createdAt), asc(eventEstablishments.id))
+    .limit(limit)
+    .offset(options.offset ?? 0);
+}
+
+/** Cuenta las participaciones que cumplen los mismos filtros que el listado. */
+export async function countParticipations(
+  db: Database,
+  filters: ParticipationFilters = {},
+): Promise<number> {
+  const conditions = filterConditions(filters);
+  const [row] = await db
+    .select({ total: count() })
+    .from(eventEstablishments)
+    .where(conditions.length > 0 ? and(...conditions) : undefined);
+
+  return row?.total ?? 0;
 }
 
 /**
@@ -309,6 +395,61 @@ export async function updateCapacity(
         updatedAt: now,
       })
       .where(eq(eventEstablishments.id, participationId))
+      .returning();
+
+    return row ?? null;
+  });
+}
+
+/**
+ * Aplica los cambios del catalogo sobre una participacion.
+ *
+ * Una sola sentencia: cupos, estado y ventanas se escriben juntos, de modo que no
+ * puede quedar una actualizacion a medias (D1 no ofrece transacciones
+ * interactivas). Los `CHECK` de la tabla siguen siendo la red de seguridad si el
+ * cupo nuevo quedara por debajo de lo confirmado.
+ *
+ * `updateCapacity` se conserva como aplicador estrecho del flujo de aprobacion de
+ * cupos (Fase 5): el ajuste aprobado no debe arrastrar otros campos.
+ */
+export async function updateParticipation(
+  db: Database,
+  id: string,
+  changes: UpdateParticipationInput,
+  now: Date = new Date(),
+): Promise<ParticipationRow | null> {
+  const values: Partial<typeof eventEstablishments.$inferInsert> = { updatedAt: now };
+
+  if (changes.status !== undefined) {
+    values.status = changes.status;
+  }
+  if (changes.titularCapacity !== undefined) {
+    values.titularCapacity = changes.titularCapacity;
+  }
+  if (changes.companionCapacity !== undefined) {
+    values.companionCapacity = changes.companionCapacity;
+  }
+  if (changes.registrationOpensAt !== undefined) {
+    values.registrationOpensAt = changes.registrationOpensAt;
+  }
+  if (changes.registrationClosesAt !== undefined) {
+    values.registrationClosesAt = changes.registrationClosesAt;
+  }
+  if (changes.checkInOpensAt !== undefined) {
+    values.checkInOpensAt = changes.checkInOpensAt;
+  }
+  if (changes.checkInClosesAt !== undefined) {
+    values.checkInClosesAt = changes.checkInClosesAt;
+  }
+  if (changes.notes !== undefined) {
+    values.notes = changes.notes;
+  }
+
+  return withConstraintTranslation(async () => {
+    const [row] = await db
+      .update(eventEstablishments)
+      .set(values)
+      .where(eq(eventEstablishments.id, id))
       .returning();
 
     return row ?? null;

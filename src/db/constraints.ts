@@ -65,20 +65,20 @@ export const UNIQUE_INVARIANTS: readonly UniqueInvariant[] = [
       AppError.conflict(ErrorCode.EMAIL_ALREADY_USED, 'Ya existe un usuario con ese email.'),
   },
   {
-    // El catalogo no tiene un codigo dedicado para el slug: la Fase 4 validara
-    // antes para poder responder 400 con el campo implicado. Este mapeo evita un
-    // 500 si esa validacion se salta (carrera entre la lectura y la escritura).
+    // El formato del slug lo valida el esquema de la ruta antes de escribir; este
+    // mapeo cubre la carrera entre esa validacion y la escritura, de modo que un
+    // duplicado nunca salga como error interno.
     index: 'events_slug_unique',
     columns: ['events.slug'],
     error: () =>
-      AppError.conflict(ErrorCode.VALIDATION_ERROR, 'Ya existe un evento con ese slug.'),
+      AppError.conflict(ErrorCode.EVENT_SLUG_ALREADY_USED, 'Ya existe un evento con ese slug.'),
   },
   {
     index: 'establishments_code_unique',
     columns: ['establishments.code'],
     error: () =>
       AppError.conflict(
-        ErrorCode.VALIDATION_ERROR,
+        ErrorCode.ESTABLISHMENT_CODE_ALREADY_USED,
         'Ya existe un establecimiento con ese codigo.',
       ),
   },

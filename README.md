@@ -1,4 +1,4 @@
-# Events API - Barby Toys & Cupidos
+# Events API
 
 Backend de **registro de participantes, emision de codigos QR y asignacion de turnos de acceso** para los eventos de Barby Toys y Cupidos.
 
@@ -171,7 +171,7 @@ src/
   core/
     crypto/                 # codificacion (base64url/hex) y SHA-256
     errors/                 # AppError, catalogo de codigos, manejador global
-    http/                   # sobres de respuesta, esquemas y respuesta de error
+    http/                   # sobres de respuesta, esquemas, paginacion y error
     middleware/             # request-id, logging estructurado, CORS
     types/                  # contexto de Hono (Bindings + Variables)
   db/
@@ -182,11 +182,11 @@ src/
     seeds/dev.sql           # datos de desarrollo (npm run db:seed:local)
   modules/
     auth/                   # login/logout/me, sesiones y guards de rol
-    users/                  # alta y mantenimiento de cuentas (solo administradores)
     health/                 # modulo de estado del servicio
-    events/                 # repositorio del catalogo de eventos
-    establishments/         # repositorio de sedes
-    participations/         # cupos por sede: reservar y liberar
+    users/                  # cuentas: alta, edicion, baja logica y contrasenas
+    events/                 # catalogo de eventos: CRUD, ventanas y estados
+    establishments/         # catalogo de sedes
+    participations/         # una sede dentro de un evento: cupos y ventanas
     registrations/          # altas y cancelaciones atomicas
 migrations/                 # SQL generado por Drizzle Kit + _journal.json
 tests/
@@ -222,14 +222,12 @@ curl -i -X POST http://localhost:8787/api/v1/auth/login \
 ```
 
 - Cuerpo de exito de `login` y `me`: `{ user: { id, email, fullName, role, status },
-  session: { id, expiresAt } }`. Las cuentas se crean desde `POST /api/v1/users`
-  (ver [Usuarios](#usuarios)) o con el comando de bootstrap del primer
-  administrador (Fase 4, pendiente).
+  session: { id, expiresAt } }`. Las cuentas se crean con `POST /api/v1/users` (solo
+  administradores); el administrador inicial, con el comando de bootstrap (Fase 4.5,
+  pendiente).
 - Roles: `admin` y `operator` (`src/db/schema/auth.ts`). `requireAuth` resuelve la
-  cookie y publica el usuario en el contexto; `requireRole('admin')` protege las
-  rutas de administracion. El rol se lee de la base en cada peticion, de modo que
-  degradar a un administrador surte efecto en su siguiente llamada sin tocar su
-  sesion.
+  cookie y publica el usuario en el contexto; `requireRole(...)` protege las rutas de
+  administracion y de catalogo (`admin` escribe; `admin` y `operator` leen).
 - Codigos de rechazo: `INVALID_CREDENTIALS` (identico para email inexistente y
   contrasena incorrecta, para no permitir enumeracion de cuentas), `ACCOUNT_LOCKED`,
   `ACCOUNT_DISABLED`, `UNAUTHENTICATED`, `SESSION_EXPIRED`, `SESSION_REVOKED` y
@@ -243,42 +241,58 @@ curl -i -X POST http://localhost:8787/api/v1/auth/login \
 
 ---
 
-## Usuarios
+## Administracion
 
-Alta y mantenimiento de cuentas. Todo el modulo esta reservado al rol `admin`:
-`requireAuth` resuelve la sesion y `requireRole('admin')` comprueba el rol.
+### Cuentas (solo administradores)
 
-| Metodo | Ruta                          | Acceso | Descripcion                                          |
-| ------ | ----------------------------- | ------ | ---------------------------------------------------- |
-| GET    | `/api/v1/users`               | Admin  | Lista paginada, con filtros por rol, estado y texto.  |
-| POST   | `/api/v1/users`               | Admin  | Crea una cuenta (rol `operator` por defecto).         |
-| GET    | `/api/v1/users/{id}`          | Admin  | Ficha de una cuenta, con su estado y bloqueo.         |
-| PATCH  | `/api/v1/users/{id}`          | Admin  | Modifica nombre, email, rol o estado.                 |
-| POST   | `/api/v1/users/{id}/password` | Admin  | Rota la contrasena y revoca las sesiones de la cuenta.|
+| Metodo | Ruta                          | Descripcion                                          |
+| ------ | ----------------------------- | ---------------------------------------------------- |
+| GET    | `/api/v1/users`               | Lista las cuentas (filtros por rol, estado y texto).  |
+| POST   | `/api/v1/users`               | Crea una cuenta (`operator` y `active` por defecto).  |
+| GET    | `/api/v1/users/{id}`          | Ficha administrativa de una cuenta.                   |
+| PATCH  | `/api/v1/users/{id}`          | Edita email, nombre, rol o estado.                    |
+| POST   | `/api/v1/users/{id}/password` | Rota la contrasena y revoca las sesiones del titular. |
 
-```bash
-curl -X POST http://localhost:8787/api/v1/users \
-  -H 'content-type: application/json' \
-  -H 'cookie: events_session=<token-de-admin>' \
-  -d '{"email":"operador@example.com","fullName":"Operador Uno","password":"<contrasena>"}'
-```
+- La ficha incluye estado y bloqueo, **nunca** el hash, el salt ni las iteraciones.
+- Un cambio que dejaria el sistema sin administradores activos responde
+  `LAST_ADMIN_PROTECTED`, y la baja es logica (`status: disabled`): no existe `DELETE`.
+- La contrasena exige 12 caracteres como minimo.
 
-- El listado responde `{ success, data, meta: { total, limit, offset } }`; `limit`
-  se acota a 100 y por defecto es 20. Las cuentas desactivadas se incluyen: siguen
-  existiendo para la auditoria.
-- **Nunca se devuelven credenciales**: ni el hash, ni el salt, ni las iteraciones.
-- **Ultimo administrador**: un cambio que dejaria el sistema sin administradores
-  activos responde 409 con `LAST_ADMIN_PROTECTED`. Cubre tambien al administrador
-  que intenta degradarse o desactivarse a si mismo, y por eso no hay una regla
-  aparte de auto-bloqueo.
-- **Politica de contrasena**: minimo 12 caracteres; si no se cumple, la respuesta
-  es 422 con `VALIDATION_ERROR`. No hay registro publico: una cuenta solo nace de
-  un administrador o del comando de bootstrap.
-- **Desactivar** (`status: "disabled"`) revoca las sesiones vivas de la cuenta, y
-  **rotar la contrasena** hace lo mismo ademas de levantar el bloqueo por intentos
-  fallidos: en ambos casos no hace falta llamar a `POST /auth/logout`.
-- No hay `DELETE`: la baja es logica para no perder la atribucion historica
-  (`created_by`, `assigned_by`, ...) de eventos, cupos y accesos.
+### Eventos, sedes y participaciones
+
+| Metodo | Ruta                          | Acceso              | Descripcion                                       |
+| ------ | ----------------------------- | ------------------- | ------------------------------------------------- |
+| GET    | `/api/v1/events`              | `admin`, `operator` | Eventos con filtros por estado y texto.            |
+| GET    | `/api/v1/events/{idOrSlug}`   | `admin`, `operator` | Evento por identificador o slug.                   |
+| POST   | `/api/v1/events`              | `admin`             | Crea un evento (`draft` por defecto).              |
+| PATCH  | `/api/v1/events/{id}`         | `admin`             | Edita el evento y su estado.                       |
+| GET    | `/api/v1/establishments`      | `admin`, `operator` | Sedes con filtros por estado y texto.              |
+| GET    | `/api/v1/establishments/{id}` | `admin`, `operator` | Sede por identificador.                            |
+| POST   | `/api/v1/establishments`      | `admin`             | Crea una sede (`active` por defecto).              |
+| PATCH  | `/api/v1/establishments/{id}` | `admin`             | Edita nombre, ciudad, direccion o estado.          |
+| GET    | `/api/v1/participations`      | `admin`, `operator` | Sedes participantes con su sede y cupo disponible. |
+| GET    | `/api/v1/participations/{id}` | `admin`, `operator` | Participacion con la sede resuelta.                |
+| POST   | `/api/v1/participations`      | `admin`             | Suma una sede al evento con sus cupos iniciales.   |
+| PATCH  | `/api/v1/participations/{id}` | `admin`             | Edita estado, cupos, ventanas o notas.             |
+
+- **Ciclo de vida del evento**: `draft -> published -> closed -> archived`; reabrir el
+  registro es `closed -> published` y `archived` es terminal. Cualquier otro salto
+  responde 409 con `STATUS_TRANSITION_INVALID`.
+- **Ciclo de vida de la sede**: `open <-> closed` (cortar y reanudar el registro) y
+  `cancelled`, que es terminal y solo se admite sin registros confirmados
+  (`PARTICIPATION_HAS_REGISTRATIONS`).
+- **Cupos**: la participacion (evento + sede) es la unidad real de cupo y expone
+  `availableTitulares` y `availableCompanions`. Sin registros confirmados el cupo se
+  edita directo; en cuanto hay alguno, el cambio responde
+  `CAPACITY_ADJUSTMENT_REQUIRED` porque entra por el flujo de aprobacion de ajustes
+  (Fase 5).
+- **Identificadores estables**: el `slug` del evento y el `code` de la sede no se
+  pueden cambiar (422 con el campo implicado); tampoco el `eventId` ni el
+  `establishmentId` de una participacion.
+- **Sin borrado fisico**: un evento se archiva y una sede se desactiva (`inactive`);
+  participaciones, registros y accesos historicos los siguen referenciando.
+- El catalogo publico (solo eventos `published`, con la disponibilidad de cupos) llega
+  con el registro publico de la Fase 5.
 
 ---
 
@@ -311,14 +325,8 @@ curl -X POST http://localhost:8787/api/v1/users \
 | 1    | Analisis y decisiones de arquitectura                     | Completada |
 | 2    | Fundamentos: scaffold, config, middleware, health, tests  | Completada |
 | 3    | Modelo de datos D1, migraciones Drizzle y repositorios base | Completada |
-| 4    | Auth (sesiones, PBKDF2), RBAC, usuarios y CRUD de eventos | En curso   |
+| 4    | Auth (sesiones, PBKDF2), RBAC, usuarios y CRUD de eventos           | En curso   |
 | 5    | Registro publico, codigos QR, turnos y check-in           | Pendiente  |
 | 6    | Endurecimiento: rate limiting, observabilidad, despliegue | Pendiente  |
 
 Decisiones y justificaciones: [`docs/architecture/overview.md`](docs/architecture/overview.md).
-
-La **Fase 4** avanza por partes y asi se refleja aqui: el modulo de auth (login,
-logout, `me`, sesiones opacas, PBKDF2 y guards `requireAuth`/`requireRole`) y el
-modulo de usuarios (alta, listado, edicion, rotacion de contrasena y proteccion
-del ultimo administrador) estan cerrados y probados; quedan pendientes el CRUD de
-eventos/establecimientos y el comando de bootstrap del primer administrador.

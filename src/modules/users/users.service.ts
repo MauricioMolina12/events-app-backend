@@ -1,6 +1,7 @@
 import type { AuthConfig } from '../../config/env';
 import { AppError } from '../../core/errors/app-error';
 import { ErrorCode } from '../../core/errors/error-codes';
+import { clampLimit, clampOffset, type PaginationLimits } from '../../core/http/pagination';
 import type { Database } from '../../db/client';
 import type { UserRole, UserStatus } from '../../db/schema';
 import { normalizeEmail, revokeAllSessions } from '../auth/auth.service';
@@ -33,6 +34,12 @@ export const PASSWORD_MIN_LENGTH = 12;
 export const PASSWORD_MAX_LENGTH = 200;
 export const USER_LIST_DEFAULT_LIMIT = 20;
 export const USER_LIST_MAX_LIMIT = 100;
+
+/** Reglas de paginacion del listado de cuentas. */
+const USER_PAGE_LIMITS: PaginationLimits = {
+  defaultLimit: USER_LIST_DEFAULT_LIMIT,
+  maxLimit: USER_LIST_MAX_LIMIT,
+};
 
 export interface CreateUserCommand {
   readonly email: string;
@@ -101,8 +108,8 @@ export async function listUserAccounts(
   db: Database,
   query: UserListQuery = {},
 ): Promise<UserPage> {
-  const limit = clampLimit(query.limit);
-  const offset = Math.max(query.offset ?? 0, 0);
+  const limit = clampLimit(query.limit, USER_PAGE_LIMITS);
+  const offset = clampOffset(query.offset);
   const filters: UserFilters = { role: query.role, status: query.status, search: query.search };
 
   const [items, total] = await Promise.all([
@@ -120,14 +127,6 @@ export async function getUserById(db: Database, id: string): Promise<UserRow> {
     throw userNotFound(id);
   }
   return user;
-}
-
-/** Acota el tamano de pagina: un `limit` sin tope agotaria las filas de D1. */
-function clampLimit(limit: number | undefined): number {
-  if (limit === undefined) {
-    return USER_LIST_DEFAULT_LIMIT;
-  }
-  return Math.min(Math.max(limit, 1), USER_LIST_MAX_LIMIT);
 }
 
 function userNotFound(id: string): AppError {

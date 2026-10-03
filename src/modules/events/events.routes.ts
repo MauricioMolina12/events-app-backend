@@ -1,0 +1,319 @@
+import { OpenAPIHono, createRoute, z, type RouteHandler } from '@hono/zod-openapi';
+import { errorResponse } from '../../core/http/error-response';
+import { apiSuccess } from '../../core/http/responses';
+import type { AppEnv } from '../../core/types/context';
+import { createDb } from '../../db/client';
+import { fromIsoString } from '../../db/helpers';
+import { EVENT_STATUSES } from '../../db/schema';
+import { currentAuthUser, requireAuth, requireRole } from '../auth/auth.middleware';
+import {
+  SLUG_MAX_LENGTH,
+  SLUG_MIN_LENGTH,
+  SLUG_PATTERN,
+  eventSchema,
+  toEvent,
+} from './events.schemas';
+import {
+  EVENT_LIST_DEFAULT_LIMIT,
+  EVENT_LIST_MAX_LIMIT,
+  createEvent,
+  getEventByReference,
+  listEventCatalog,
+  updateEvent,
+} from './events.service';
+
+/**
+ * Rutas del catalogo de eventos.
+ *
+ * La lectura la comparten `admin` y `operator` (el operador necesita el catalogo
+ * para preparar la jornada); la escritura es exclusiva del `admin`. El catalogo
+ * publico, limitado a eventos publicados y con la disponibilidad de cupos, llega
+ * con el registro publico de la Fase 5.
+ */
+
+/** Fecha ISO-8601 en UTC; `null` limpia el campo. */
+const eventDateSchema = z
+  .iso.datetime()
+  .openapi({
+    example: '2026-04-25T15:00:00.000Z',
+    description: 'ISO-8601 en UTC. `null` borra la fecha.',
+  })
+  .nullable()
+  .optional();
+
+const eventSlugSchema = z
+  .string()
+  .trim()
+  .min(SLUG_MIN_LENGTH)
+  .max(SLUG_MAX_LENGTH)
+  .regex(SLUG_PATTERN)
+  .openapi({
+    example: 'dia-del-nino-2026',
+    description: 'Minusculas, digitos y guiones simples. Inmutable una vez creado el evento.',
+  });
+
+const eventReferenceParamSchema = z.object({
+  idOrSlug: z.string().min(1).openapi({
+    param: { name: 'idOrSlug', in: 'path' },
+    description: 'Identificador del evento o su slug.',
+  }),
+});
+
+const eventIdParamSchema = z.object({
+  id: z.string().min(1).openapi({
+    param: { name: 'id', in: 'path' },
+    description: 'Identificador del evento.',
+  }),
+});
+
+const listEventsQuerySchema = z
+  .object({
+    status: z.enum(EVENT_STATUSES).optional(),
+    search: z
+      .string()
+      .trim()
+      .min(1)
+      .max(120)
+      .optional()
+      .openapi({ description: 'Filtra por slug o nombre (sin distinguir mayusculas).' }),
+    limit: z.coerce.number().int().min(1).max(EVENT_LIST_MAX_LIMIT).default(EVENT_LIST_DEFAULT_LIMIT),
+    offset: z.coerce.number().int().min(0).default(0),
+  })
+  .openapi('EventListQuery');
+
+const eventResponseSchema = z
+  .object({ success: z.literal(true), data: eventSchema })
+  .openapi('EventResponse');
+
+const eventListResponseSchema = z
+  .object({
+    success: z.literal(true),
+    data: z.array(eventSchema),
+    meta: z.object({
+      total: z.number().int(),
+      limit: z.number().int(),
+      offset: z.number().int(),
+    }),
+  })
+  .openapi('EventListResponse');
+
+const listEventsRoute = createRoute({
+  method: 'get',
+  path: '/events',
+  tags: ['Eventos'],
+  middleware: [requireAuth, requireRole('admin', 'operator')],
+  summary: 'Lista los eventos',
+  description: [
+    'Devuelve el catalogo ordenado por alta descendente, con filtros opcionales',
+    'por estado y texto libre. `meta.total` cuenta todas las filas que cumplen los',
+    'filtros, no solo las de la pagina.',
+    '',
+    'Al operador le sirve para consultar la jornada; las altas y los cambios son',
+    'exclusivos del administrador.',
+  ].join('\n'),
+  request: { query: listEventsQuerySchema },
+  responses: {
+    200: {
+      description: 'Pagina de eventos.',
+      content: { 'application/json': { schema: eventListResponseSchema } },
+    },
+    401: errorResponse('Sin sesion activa.'),
+    403: errorResponse('La cuenta autenticada no es `admin` ni `operator`.'),
+  },
+});
+
+const listEventsHandler: RouteHandler<typeof listEventsRoute, AppEnv> = async (c) => {
+  const page = await listEventCatalog(createDb(c.env), c.req.valid('query'));
+
+  return c.json(
+    apiSuccess(page.items.map(toEvent), {
+      total: page.total,
+      limit: page.limit,
+      offset: page.offset,
+    }),
+    200,
+  );
+};
+
+const getEventRoute = createRoute({
+  method: 'get',
+  path: '/events/{idOrSlug}',
+  tags: ['Eventos'],
+  middleware: [requireAuth, requireRole('admin', 'operator')],
+  summary: 'Consulta un evento',
+  description: [
+    'Acepta el identificador o el slug del evento: el slug es el que aparece en',
+    'las URL publicas. Responde 404 con `EVENT_NOT_FOUND` si no existe.',
+  ].join('\n'),
+  request: { params: eventReferenceParamSchema },
+  responses: {
+    200: {
+      description: 'Evento encontrado.',
+      content: { 'application/json': { schema: eventResponseSchema } },
+    },
+    401: errorResponse('Sin sesion activa.'),
+    403: errorResponse('La cuenta autenticada no es `admin` ni `operator`.'),
+    404: errorResponse('El evento no existe (`EVENT_NOT_FOUND`).'),
+  },
+});
+
+const getEventHandler: RouteHandler<typeof getEventRoute, AppEnv> = async (c) => {
+  const event = await getEventByReference(createDb(c.env), c.req.valid('param').idOrSlug);
+
+  return c.json(apiSuccess(toEvent(event)), 200);
+};
+
+const createEventBodySchema = z
+  .object({
+    slug: eventSlugSchema,
+    name: z.string().trim().min(1).max(160),
+    description: z.string().trim().max(1000).nullable().optional(),
+    timezone: z
+      .string()
+      .trim()
+      .min(1)
+      .max(64)
+      .optional()
+      .openapi({ example: 'America/Bogota', description: 'Zona IANA de presentacion.' }),
+    startsAt: eventDateSchema,
+    endsAt: eventDateSchema,
+    registrationOpensAt: eventDateSchema,
+    registrationClosesAt: eventDateSchema,
+    status: z.enum(EVENT_STATUSES).optional(),
+  })
+  .openapi('CreateEventRequest');
+
+const createEventRoute = createRoute({
+  method: 'post',
+  path: '/events',
+  tags: ['Eventos'],
+  middleware: [requireAuth, requireRole('admin')],
+  summary: 'Crea un evento',
+  description: [
+    'El evento nace en `draft` (o en el estado indicado) y conserva el `slug` para',
+    'siempre: es el identificador publico del evento.',
+    '',
+    'Validaciones: 422 con `VALIDATION_ERROR` si el slug no tiene el formato',
+    'esperado, si la zona horaria no existe o si una ventana de tiempo esta',
+    'invertida (`endsAt` antes de `startsAt`, o cierre de registro antes de la',
+    'apertura); 409 con `STATUS_TRANSITION_INVALID` si se intenta crear el evento',
+    'directamente en `closed`; y 409 con `EVENT_SLUG_ALREADY_USED` si el slug ya',
+    'existe.',
+  ].join('\n'),
+  request: {
+    body: {
+      required: true,
+      content: { 'application/json': { schema: createEventBodySchema } },
+    },
+  },
+  responses: {
+    201: {
+      description: 'Evento creado.',
+      content: { 'application/json': { schema: eventResponseSchema } },
+    },
+    401: errorResponse('Sin sesion activa.'),
+    403: errorResponse('La cuenta autenticada no es administradora.'),
+    409: errorResponse(
+      'El slug ya esta en uso (`EVENT_SLUG_ALREADY_USED`) o el estado inicial no es alcanzable (`STATUS_TRANSITION_INVALID`).',
+    ),
+    422: errorResponse('El cuerpo no cumple el formato o la coherencia esperada.'),
+  },
+});
+
+const createEventHandler: RouteHandler<typeof createEventRoute, AppEnv> = async (c) => {
+  const body = c.req.valid('json');
+  const event = await createEvent(createDb(c.env), {
+    slug: body.slug,
+    name: body.name,
+    description: body.description ?? null,
+    timezone: body.timezone,
+    startsAt: toDateOrNull(body.startsAt),
+    endsAt: toDateOrNull(body.endsAt),
+    registrationOpensAt: toDateOrNull(body.registrationOpensAt),
+    registrationClosesAt: toDateOrNull(body.registrationClosesAt),
+    status: body.status,
+    createdBy: currentAuthUser(c).id,
+  });
+
+  return c.json(apiSuccess(toEvent(event)), 201);
+};
+
+const updateEventBodySchema = z
+  .object({
+    slug: eventSlugSchema.optional(),
+    name: z.string().trim().min(1).max(160).optional(),
+    description: z.string().trim().max(1000).nullable().optional(),
+    timezone: z.string().trim().min(1).max(64).optional(),
+    startsAt: eventDateSchema,
+    endsAt: eventDateSchema,
+    registrationOpensAt: eventDateSchema,
+    registrationClosesAt: eventDateSchema,
+    status: z.enum(EVENT_STATUSES).optional(),
+  })
+  .openapi('UpdateEventRequest');
+
+const updateEventRoute = createRoute({
+  method: 'patch',
+  path: '/events/{id}',
+  tags: ['Eventos'],
+  middleware: [requireAuth, requireRole('admin')],
+  summary: 'Actualiza un evento',
+  description: [
+    'Modifica los campos indicados; los ausentes se mantienen y `null` limpia una',
+    'fecha. El `slug` es inmutable: enviarlo con otro valor responde 422 con el',
+    'campo implicado.',
+    '',
+    'Los cambios de estado siguen el ciclo de vida `draft -> published -> closed ->',
+    'archived` (reabrir el registro es `closed -> published`); `archived` es',
+    'terminal y cualquier salto no admitido responde 409 con',
+    '`STATUS_TRANSITION_INVALID`.',
+  ].join('\n'),
+  request: {
+    params: eventIdParamSchema,
+    body: {
+      required: true,
+      content: { 'application/json': { schema: updateEventBodySchema } },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Evento actualizado.',
+      content: { 'application/json': { schema: eventResponseSchema } },
+    },
+    401: errorResponse('Sin sesion activa.'),
+    403: errorResponse('La cuenta autenticada no es administradora.'),
+    404: errorResponse('El evento no existe (`EVENT_NOT_FOUND`).'),
+    409: errorResponse('El cambio de estado no esta permitido (`STATUS_TRANSITION_INVALID`).'),
+    422: errorResponse('El cuerpo no cumple el formato o la coherencia esperada.'),
+  },
+});
+
+const updateEventHandler: RouteHandler<typeof updateEventRoute, AppEnv> = async (c) => {
+  const body = c.req.valid('json');
+  const event = await updateEvent(createDb(c.env), c.req.valid('param').id, {
+    slug: body.slug,
+    name: body.name,
+    description: body.description,
+    timezone: body.timezone,
+    startsAt: toDateOrNull(body.startsAt),
+    endsAt: toDateOrNull(body.endsAt),
+    registrationOpensAt: toDateOrNull(body.registrationOpensAt),
+    registrationClosesAt: toDateOrNull(body.registrationClosesAt),
+    status: body.status,
+  });
+
+  return c.json(apiSuccess(toEvent(event)), 200);
+};
+
+/** Convierte un ISO-8601 del cuerpo a `Date`; conserva `null` y `undefined`. */
+function toDateOrNull(value: string | null | undefined): Date | null | undefined {
+  return value === null || value === undefined ? value : fromIsoString(value);
+}
+
+/** Registra las rutas del catalogo de eventos. */
+export function registerEventRoutes(app: OpenAPIHono<AppEnv>): void {
+  app.openapi(listEventsRoute, listEventsHandler);
+  app.openapi(getEventRoute, getEventHandler);
+  app.openapi(createEventRoute, createEventHandler);
+  app.openapi(updateEventRoute, updateEventHandler);
+}

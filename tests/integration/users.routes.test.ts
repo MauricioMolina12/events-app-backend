@@ -1,6 +1,7 @@
 import { SELF } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createTestUser, loginAs, loginRequest } from '../helpers/auth';
+import { OPERATOR_PASSWORD, api, errorCodeOf, seedAdmin, seedOperator } from '../helpers/api';
+import { loginAs, loginRequest, createTestUser } from '../helpers/auth';
 import { truncateAll } from '../helpers/database';
 
 /**
@@ -11,8 +12,6 @@ import { truncateAll } from '../helpers/database';
  * la desactivacion y de la rotacion de contrasena sobre las sesiones.
  */
 
-const ADMIN_PASSWORD = 'contrasena-admin-1';
-const OPERATOR_PASSWORD = 'contrasena-operador-1';
 const NEW_PASSWORD = 'contrasena-rotada-1';
 
 interface ErrorBody {
@@ -50,39 +49,6 @@ interface PasswordResetBody {
 }
 
 beforeEach(truncateAll);
-
-/** Peticion autenticada contra la API real. */
-function api(path: string, cookie: string, init: RequestInit = {}): Promise<Response> {
-  return SELF.fetch(`https://example.com/api/v1${path}`, {
-    ...init,
-    headers: { 'content-type': 'application/json', cookie, ...(init.headers ?? {}) },
-  });
-}
-
-async function errorCodeOf(response: Response): Promise<string> {
-  const body = await response.json<ErrorBody>();
-  return body.error.code;
-}
-
-/** Administrador sembrado junto a la cookie de su sesion. */
-async function seedAdmin(email = 'admin@example.com'): Promise<{ id: string; cookie: string }> {
-  const user = await createTestUser({ email, password: ADMIN_PASSWORD, role: 'admin' });
-  return { id: user.id, cookie: await loginAs(email, ADMIN_PASSWORD) };
-}
-
-/** Operador sembrado junto a la cookie de su sesion. */
-async function seedOperator(
-  email = 'operador@example.com',
-  fullName = 'Operador Uno',
-): Promise<{ id: string; cookie: string }> {
-  const user = await createTestUser({
-    email,
-    password: OPERATOR_PASSWORD,
-    fullName,
-    role: 'operator',
-  });
-  return { id: user.id, cookie: await loginAs(email, OPERATOR_PASSWORD) };
-}
 
 describe('autorizacion del modulo de usuarios', () => {
   it('exige una sesion activa', async () => {

@@ -8,7 +8,10 @@ import { requestLoggerMiddleware } from './core/middleware/logger';
 import { requestIdMiddleware } from './core/middleware/request-id';
 import type { AppEnv } from './core/types/context';
 import { registerAuthRoutes } from './modules/auth/auth.routes';
+import { registerEstablishmentRoutes } from './modules/establishments/establishments.routes';
+import { registerEventRoutes } from './modules/events/events.routes';
 import { registerHealthRoutes } from './modules/health/health.routes';
+import { registerParticipationRoutes } from './modules/participations/participations.routes';
 import { registerUserRoutes } from './modules/users/users.routes';
 
 /**
@@ -43,6 +46,9 @@ export function createApp(): OpenAPIHono<AppEnv> {
   registerAuthRoutes(api);
   registerHealthRoutes(api);
   registerUserRoutes(api);
+  registerEventRoutes(api);
+  registerEstablishmentRoutes(api);
+  registerParticipationRoutes(api);
   app.route(API_PREFIX, api);
 
   /* --- Documentacion OpenAPI --- */
@@ -57,6 +63,12 @@ export function createApp(): OpenAPIHono<AppEnv> {
       { name: 'Sistema', description: 'Estado del servicio y documentacion.' },
       { name: 'Autenticacion', description: 'Sesion de operadores y administradores.' },
       { name: 'Usuarios', description: 'Alta y mantenimiento de cuentas (solo administradores).' },
+      { name: 'Eventos', description: 'Catalogo de eventos y sus ventanas de registro.' },
+      { name: 'Establecimientos', description: 'Catalogo de sedes.' },
+      {
+        name: 'Participaciones',
+        description: 'Una sede dentro de un evento: cupos y ventanas propias.',
+      },
     ],
   });
   app.get(`${API_PREFIX}/docs`, swaggerUI({ url: `${API_PREFIX}/openapi.json` }));

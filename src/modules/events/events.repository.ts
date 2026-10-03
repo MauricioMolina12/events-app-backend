@@ -1,4 +1,4 @@
-import { and, desc, eq, type SQL } from 'drizzle-orm';
+import { and, count, desc, eq, or, sql, type SQL } from 'drizzle-orm';
 import type { Database } from '../../db/client';
 import { withConstraintTranslation } from '../../db/constraints';
 import { newId } from '../../db/helpers';
@@ -28,8 +28,14 @@ export interface CreateEventInput {
 
 export type UpdateEventInput = Partial<Omit<CreateEventInput, 'slug' | 'createdBy'>>;
 
-export interface ListEventsOptions {
-  status?: EventStatus;
+/** Filtros del catalogo de eventos. */
+export interface EventFilters {
+  readonly status?: EventStatus;
+  /** Texto libre buscado en el slug y el nombre, sin distinguir mayusculas. */
+  readonly search?: string;
+}
+
+export interface ListEventsOptions extends EventFilters {
   limit?: number;
   offset?: number;
 }
@@ -37,6 +43,35 @@ export interface ListEventsOptions {
 /** Limite por defecto de los listados; evita respuestas sin techo. */
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
+
+/**
+ * Condiciones compartidas por el listado y su conteo.
+ *
+ * Deben calcularse en un unico lugar: si divergieran, `meta.total` dejaria de
+ * corresponder con las filas que el cliente puede recorrer.
+ */
+function filterConditions(filters: EventFilters): SQL[] {
+  const conditions: SQL[] = [];
+
+  if (filters.status !== undefined) {
+    conditions.push(eq(events.status, filters.status));
+  }
+
+  const search = filters.search?.trim().toLowerCase();
+  if (search !== undefined && search !== '') {
+    // `instr` en lugar de `LIKE`: el texto buscado puede contener `%` o `_`, que en
+    // `LIKE` son comodines y obligarian a escapar el patron.
+    const matching = or(
+      sql`instr(lower(${events.slug}), ${search}) > 0`,
+      sql`instr(lower(${events.name}), ${search}) > 0`,
+    );
+    if (matching !== undefined) {
+      conditions.push(matching);
+    }
+  }
+
+  return conditions;
+}
 
 export async function findEventById(db: Database, id: string): Promise<EventRow | null> {
   const [row] = await db.select().from(events).where(eq(events.id, id)).limit(1);
@@ -53,18 +88,26 @@ export async function listEvents(
   options: ListEventsOptions = {},
 ): Promise<EventRow[]> {
   const limit = Math.min(options.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
-  const filters: SQL[] = [];
-  if (options.status !== undefined) {
-    filters.push(eq(events.status, options.status));
-  }
+  const conditions = filterConditions(options);
 
   return db
     .select()
     .from(events)
-    .where(filters.length > 0 ? and(...filters) : undefined)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(events.createdAt))
     .limit(limit)
     .offset(options.offset ?? 0);
+}
+
+/** Cuenta los eventos que cumplen los mismos filtros que `listEvents`. */
+export async function countEvents(db: Database, filters: EventFilters = {}): Promise<number> {
+  const conditions = filterConditions(filters);
+  const [row] = await db
+    .select({ total: count() })
+    .from(events)
+    .where(conditions.length > 0 ? and(...conditions) : undefined);
+
+  return row?.total ?? 0;
 }
 
 /**
