@@ -47,6 +47,11 @@ HTTP (Hono)
   devuelve resultados de dominio o lanza `AppError`. Es la unica capa con tests unitarios puros.
 - **repository**: unico punto que emite SQL/Drizzle. Recibe y devuelve tipos de
   dominio, nunca tipos HTTP.
+- **Una tabla, un repositorio**: cada tabla tiene un unico modulo que emite SQL
+  sobre ella (`users` en `modules/users`; `sessions` y `auth_attempts` en
+  `modules/auth`; los cupos en `modules/participations`). Si un modulo necesita una
+  operacion de otro importa su **servicio**, nunca su repositorio: es la regla que
+  sigue `users` -> `auth` y la que mantiene las dependencias en una sola direccion.
 
 Codigo transversal en `src/core/` (errores, sobres de respuesta, middleware) y
 `src/config/` (constantes y lectura de bindings).
@@ -247,6 +252,28 @@ una opcion.
   `AUTH_MAX_FAILED_ATTEMPTS` y `AUTH_LOCKOUT_MINUTES`. Un valor fuera de rango produce
   500 en la primera peticion.
 
+### Administracion de cuentas
+
+- Todo el modulo de usuarios exige rol `admin` (`requireAuth` + `requireRole`). Como
+  el rol se lee de la base en cada peticion, degradar a un administrador surte efecto
+  en su siguiente llamada sin necesidad de tocar su sesion.
+- **Ultimo administrador (decision #18)**: un cambio que dejaria el sistema sin
+  administradores activos responde `LAST_ADMIN_PROTECTED`. Cubre tambien al
+  administrador que intenta degradarse o desactivarse a si mismo, de modo que no hace
+  falta una regla adicional de auto-bloqueo: seria redundante.
+- **Baja logica (decision #19)**: no existe `DELETE /users/{id}`. Desactivar la cuenta
+  (`status: disabled`) conserva la atribucion historica (`created_by`,
+  `assigned_by`, ...) de eventos, cupos y accesos.
+- **Politica de contrasena (decision #20)**: minimo 12 caracteres. Se valida en el
+  servicio, no solo en el esquema de la ruta, porque el comando de bootstrap crea la
+  primera cuenta sin pasar por HTTP.
+- **Rotacion y sesiones (decision #21)**: rotar la contrasena revoca todas las
+  sesiones del titular y levanta el bloqueo por intentos fallidos; desactivar la cuenta
+  revoca sus sesiones. Ninguna credencial anterior sobrevive a un cambio.
+- La ficha que devuelve el listado incluye estado y bloqueo, pero **nunca** el hash, el
+  salt ni las iteraciones. La traduccion de fila a JSON vive en `users.schemas.ts`,
+  igual que `auth.schemas.ts` decide que se publica de una sesion.
+
 ---
 
 ## 9. Pruebas
@@ -254,10 +281,13 @@ una opcion.
 - Se ejecutan dentro de workerd con `@cloudflare/vitest-plugin` + Miniflare, usando
   la misma configuracion de `wrangler.jsonc` (incluido el binding D1).
 - `tests/unit`: unidades puras (errores, traduccion de restricciones, utilidades,
-  codificacion, PBKDF2, tokens de sesion y guards de rol).
+  codificacion, PBKDF2, tokens de sesion, guards de rol, politica de contrasenas y
+  ficha publica de usuario).
 - `tests/integration`: la app completa via `SELF.fetch` (incluido el ciclo
   `login` -> `me` -> `logout` con cookie y sesion reales en D1) y, desde la Fase 3, los
-  repositorios contra una **D1 real** dentro de workerd (sin dobles de prueba).
+  repositorios contra una **D1 real** dentro de workerd (sin dobles de prueba). El panel
+  de usuarios se cubre de extremo a extremo: autorizacion por rol, paginacion, proteccion
+  del ultimo administrador y revocacion de sesiones al desactivar o rotar la contrasena.
 - Las migraciones de `migrations/` se aplican con `applyD1Migrations` en
   `tests/setup/`, que recibe el SQL por el binding `TEST_MIGRATIONS` porque workerd
   no puede leer el sistema de archivos. `tests/helpers/database.ts` centraliza la
@@ -279,7 +309,7 @@ una opcion.
 | 1    | Analisis y decisiones de arquitectura (completada)                         |
 | 2    | Fundamentos: config, middleware, errores, health, OpenAPI, tests (completada) |
 | 3    | Esquema D1 completo, migraciones Drizzle y repositorios base (completada)  |
-| 4    | Auth con sesiones, RBAC y CRUD de eventos/establecimientos (auth y RBAC listos) |
+| 4    | Auth con sesiones, RBAC, usuarios y CRUD de eventos/establecimientos (auth, RBAC y usuarios listos) |
 | 5    | Registro publico, QR, turnos, check-in y gestion de cupos                  |
 | 6    | Endurecimiento: rate limiting, observabilidad, despliegue y runbook        |
 
@@ -306,3 +336,7 @@ una opcion.
 | 15 | Bloqueo progresivo con tope de 8x               | Superado el umbral, la espera se duplica en cada ronda: frena la fuerza bruta sin bloquear la cuenta indefinidamente. |
 | 16 | IP hasheada (SHA-256) en `auth_attempts`        | Permite correlacionar intentos sin almacenar un dato personal.     |
 | 17 | Respuesta identica si el email no existe        | Derivar PBKDF2 y responder `INVALID_CREDENTIALS` en ambos casos evita la enumeracion de cuentas. |
+| 18 | Un cambio no puede dejar el sistema sin admins  | Degradar o desactivar al ultimo administrador activo responde `LAST_ADMIN_PROTECTED`; cubre el auto-bloqueo sin reglas redundantes. |
+| 19 | Baja logica de usuarios, sin `DELETE`           | Preserva la atribucion historica de eventos, cupos y accesos; el acceso se corta con `status: disabled`. |
+| 20 | Minimo de 12 caracteres para la contrasena      | Las cuentas nacen de un administrador o del bootstrap: la contrasena es la unica barrera, no un registro publico. |
+| 21 | Rotacion de contrasena revoca sesiones          | Cerrar todas las sesiones del titular hace efectivo el cambio tambien frente a un token robado. |

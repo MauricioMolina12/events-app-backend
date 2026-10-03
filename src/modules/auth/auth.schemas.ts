@@ -1,7 +1,8 @@
 import { z } from '@hono/zod-openapi';
 import type { AuthPrincipal, AuthSessionInfo } from '../../core/types/context';
 import { USER_ROLES, USER_STATUSES } from '../../db/schema';
-import type { SessionRow, UserRow } from './auth.repository';
+import type { UserRow } from '../users/users.repository';
+import type { SessionRow } from './auth.repository';
 
 /**
  * Esquemas y mapeos de presentacion del modulo de autenticacion.

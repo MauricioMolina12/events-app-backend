@@ -1,7 +1,7 @@
 import { SELF, env } from 'cloudflare:test';
 import { createDb } from '../../src/db/client';
 import type { UserRole, UserStatus } from '../../src/db/schema';
-import { insertUser, type UserRow } from '../../src/modules/auth/auth.repository';
+import { insertUser, type UserRow } from '../../src/modules/users/users.repository';
 import { hashPassword } from '../../src/modules/auth/password';
 
 /**

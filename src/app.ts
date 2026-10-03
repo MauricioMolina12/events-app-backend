@@ -9,6 +9,7 @@ import { requestIdMiddleware } from './core/middleware/request-id';
 import type { AppEnv } from './core/types/context';
 import { registerAuthRoutes } from './modules/auth/auth.routes';
 import { registerHealthRoutes } from './modules/health/health.routes';
+import { registerUserRoutes } from './modules/users/users.routes';
 
 /**
  * Construye la aplicacion Hono.
@@ -41,6 +42,7 @@ export function createApp(): OpenAPIHono<AppEnv> {
   const api = new OpenAPIHono<AppEnv>({ strict: false });
   registerAuthRoutes(api);
   registerHealthRoutes(api);
+  registerUserRoutes(api);
   app.route(API_PREFIX, api);
 
   /* --- Documentacion OpenAPI --- */
@@ -54,6 +56,7 @@ export function createApp(): OpenAPIHono<AppEnv> {
     tags: [
       { name: 'Sistema', description: 'Estado del servicio y documentacion.' },
       { name: 'Autenticacion', description: 'Sesion de operadores y administradores.' },
+      { name: 'Usuarios', description: 'Alta y mantenimiento de cuentas (solo administradores).' },
     ],
   });
   app.get(`${API_PREFIX}/docs`, swaggerUI({ url: `${API_PREFIX}/openapi.json` }));

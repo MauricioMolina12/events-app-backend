@@ -182,6 +182,7 @@ src/
     seeds/dev.sql           # datos de desarrollo (npm run db:seed:local)
   modules/
     auth/                   # login/logout/me, sesiones y guards de rol
+    users/                  # alta y mantenimiento de cuentas (solo administradores)
     health/                 # modulo de estado del servicio
     events/                 # repositorio del catalogo de eventos
     establishments/         # repositorio de sedes
@@ -221,11 +222,14 @@ curl -i -X POST http://localhost:8787/api/v1/auth/login \
 ```
 
 - Cuerpo de exito de `login` y `me`: `{ user: { id, email, fullName, role, status },
-  session: { id, expiresAt } }`. Un usuario sin sesion se crea con el comando de
-  bootstrap (Fase 4, pendiente); hoy no hay endpoint de alta de usuarios.
+  session: { id, expiresAt } }`. Las cuentas se crean desde `POST /api/v1/users`
+  (ver [Usuarios](#usuarios)) o con el comando de bootstrap del primer
+  administrador (Fase 4, pendiente).
 - Roles: `admin` y `operator` (`src/db/schema/auth.ts`). `requireAuth` resuelve la
   cookie y publica el usuario en el contexto; `requireRole('admin')` protege las
-  rutas de administracion que se anadiran en el resto de la Fase 4.
+  rutas de administracion. El rol se lee de la base en cada peticion, de modo que
+  degradar a un administrador surte efecto en su siguiente llamada sin tocar su
+  sesion.
 - Codigos de rechazo: `INVALID_CREDENTIALS` (identico para email inexistente y
   contrasena incorrecta, para no permitir enumeracion de cuentas), `ACCOUNT_LOCKED`,
   `ACCOUNT_DISABLED`, `UNAUTHENTICATED`, `SESSION_EXPIRED`, `SESSION_REVOKED` y
@@ -236,6 +240,45 @@ curl -i -X POST http://localhost:8787/api/v1/auth/login \
   con la IP **hasheada**, no en claro.
 - La cookie se marca `Secure` fuera de `local` (en local el desarrollo es http y el
   navegador descartaria una cookie `Secure`).
+
+---
+
+## Usuarios
+
+Alta y mantenimiento de cuentas. Todo el modulo esta reservado al rol `admin`:
+`requireAuth` resuelve la sesion y `requireRole('admin')` comprueba el rol.
+
+| Metodo | Ruta                          | Acceso | Descripcion                                          |
+| ------ | ----------------------------- | ------ | ---------------------------------------------------- |
+| GET    | `/api/v1/users`               | Admin  | Lista paginada, con filtros por rol, estado y texto.  |
+| POST   | `/api/v1/users`               | Admin  | Crea una cuenta (rol `operator` por defecto).         |
+| GET    | `/api/v1/users/{id}`          | Admin  | Ficha de una cuenta, con su estado y bloqueo.         |
+| PATCH  | `/api/v1/users/{id}`          | Admin  | Modifica nombre, email, rol o estado.                 |
+| POST   | `/api/v1/users/{id}/password` | Admin  | Rota la contrasena y revoca las sesiones de la cuenta.|
+
+```bash
+curl -X POST http://localhost:8787/api/v1/users \
+  -H 'content-type: application/json' \
+  -H 'cookie: events_session=<token-de-admin>' \
+  -d '{"email":"operador@example.com","fullName":"Operador Uno","password":"<contrasena>"}'
+```
+
+- El listado responde `{ success, data, meta: { total, limit, offset } }`; `limit`
+  se acota a 100 y por defecto es 20. Las cuentas desactivadas se incluyen: siguen
+  existiendo para la auditoria.
+- **Nunca se devuelven credenciales**: ni el hash, ni el salt, ni las iteraciones.
+- **Ultimo administrador**: un cambio que dejaria el sistema sin administradores
+  activos responde 409 con `LAST_ADMIN_PROTECTED`. Cubre tambien al administrador
+  que intenta degradarse o desactivarse a si mismo, y por eso no hay una regla
+  aparte de auto-bloqueo.
+- **Politica de contrasena**: minimo 12 caracteres; si no se cumple, la respuesta
+  es 422 con `VALIDATION_ERROR`. No hay registro publico: una cuenta solo nace de
+  un administrador o del comando de bootstrap.
+- **Desactivar** (`status: "disabled"`) revoca las sesiones vivas de la cuenta, y
+  **rotar la contrasena** hace lo mismo ademas de levantar el bloqueo por intentos
+  fallidos: en ambos casos no hace falta llamar a `POST /auth/logout`.
+- No hay `DELETE`: la baja es logica para no perder la atribucion historica
+  (`created_by`, `assigned_by`, ...) de eventos, cupos y accesos.
 
 ---
 
@@ -268,13 +311,14 @@ curl -i -X POST http://localhost:8787/api/v1/auth/login \
 | 1    | Analisis y decisiones de arquitectura                     | Completada |
 | 2    | Fundamentos: scaffold, config, middleware, health, tests  | Completada |
 | 3    | Modelo de datos D1, migraciones Drizzle y repositorios base | Completada |
-| 4    | Auth (sesiones, PBKDF2), RBAC y CRUD de eventos           | En curso   |
+| 4    | Auth (sesiones, PBKDF2), RBAC, usuarios y CRUD de eventos | En curso   |
 | 5    | Registro publico, codigos QR, turnos y check-in           | Pendiente  |
 | 6    | Endurecimiento: rate limiting, observabilidad, despliegue | Pendiente  |
 
 Decisiones y justificaciones: [`docs/architecture/overview.md`](docs/architecture/overview.md).
 
-La **Fase 4** esta entregada a medias y asi se refleja aqui: el modulo de auth
-(login, logout, `me`, sesiones opacas, PBKDF2 y guards `requireAuth`/`requireRole`)
-esta cerrado y probado; quedan pendientes el alta de usuarios con `LAST_ADMIN_PROTECTED`,
-el CRUD de eventos/establecimientos y el comando de bootstrap del primer administrador.
+La **Fase 4** avanza por partes y asi se refleja aqui: el modulo de auth (login,
+logout, `me`, sesiones opacas, PBKDF2 y guards `requireAuth`/`requireRole`) y el
+modulo de usuarios (alta, listado, edicion, rotacion de contrasena y proteccion
+del ultimo administrador) estan cerrados y probados; quedan pendientes el CRUD de
+eventos/establecimientos y el comando de bootstrap del primer administrador.

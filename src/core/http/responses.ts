@@ -14,6 +14,13 @@ export interface ApiSuccessBody<T> {
   meta?: ApiMeta;
 }
 
+/** Respuesta con metadatos, conservando el tipo concreto de `meta` (paginacion). */
+export interface ApiSuccessBodyWithMeta<T, M extends ApiMeta> {
+  success: true;
+  data: T;
+  meta: M;
+}
+
 export interface ApiErrorBody {
   success: false;
   error: {
@@ -25,6 +32,8 @@ export interface ApiErrorBody {
 }
 
 /** Construye el cuerpo de una respuesta exitosa. */
+export function apiSuccess<T>(data: T): ApiSuccessBody<T>;
+export function apiSuccess<T, M extends ApiMeta>(data: T, meta: M): ApiSuccessBodyWithMeta<T, M>;
 export function apiSuccess<T>(data: T, meta?: ApiMeta): ApiSuccessBody<T> {
   return meta === undefined ? { success: true, data } : { success: true, data, meta };
 }

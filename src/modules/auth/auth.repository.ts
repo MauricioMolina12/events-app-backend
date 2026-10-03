@@ -2,35 +2,19 @@ import { and, eq, gt, isNull } from 'drizzle-orm';
 import type { Database } from '../../db/client';
 import { withConstraintTranslation } from '../../db/constraints';
 import { newId } from '../../db/helpers';
-import { authAttempts, sessions, users, type UserRole, type UserStatus } from '../../db/schema';
-import type { PasswordDigest } from './password';
+import { authAttempts, sessions } from '../../db/schema';
 
 /**
- * Repositorio de usuarios, sesiones e intentos de autenticacion.
+ * Repositorio de sesiones e intentos de autenticacion.
  *
- * Unico punto del proyecto que emite SQL sobre `users`, `sessions` y
- * `auth_attempts`. No conoce Hono ni tipos HTTP: recibe y devuelve filas de
- * Drizzle, y el texto de las restricciones lo traduce `constraints.ts`.
+ * Unico punto del proyecto que emite SQL sobre `sessions` y `auth_attempts`; las
+ * sentencias sobre `users` viven en `modules/users/users.repository.ts`, del que
+ * este modulo solo consume las consultas de autenticacion. No conoce Hono ni
+ * tipos HTTP y el texto de las restricciones lo traduce `constraints.ts`.
  */
 
-export type UserRow = typeof users.$inferSelect;
 export type SessionRow = typeof sessions.$inferSelect;
 export type AuthAttemptRow = typeof authAttempts.$inferSelect;
-
-export interface CreateUserInput extends PasswordDigest {
-  email: string;
-  fullName: string;
-  role?: UserRole;
-  status?: UserStatus;
-}
-
-/** Estado de bloqueo calculado por el servicio al fallar un login. */
-export interface LoginFailureState {
-  /** Fallos consecutivos de la racha actual. */
-  failedLoginAttempts: number;
-  /** `null` cuando el fallo no alcanzo el umbral de bloqueo. */
-  lockedUntil: Date | null;
-}
 
 export interface InsertSessionInput {
   userId: string;
@@ -42,113 +26,6 @@ export interface InsertAuthAttemptInput {
   identifier: string;
   succeeded: boolean;
   sourceHash?: string | null;
-}
-
-export async function findUserById(db: Database, id: string): Promise<UserRow | null> {
-  const [row] = await db.select().from(users).where(eq(users.id, id)).limit(1);
-  return row ?? null;
-}
-
-/** Busca por email; el email debe llegar ya normalizado (`normalizeEmail`). */
-export async function findUserByEmail(db: Database, email: string): Promise<UserRow | null> {
-  const [row] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-  return row ?? null;
-}
-
-/**
- * Inserta un usuario.
- *
- * El email duplicado lo traduce `users_email_unique` a `EMAIL_ALREADY_USED`: no
- * se consulta antes, porque esa comprobacion seria una carrera.
- */
-export async function insertUser(
-  db: Database,
-  input: CreateUserInput,
-  now: Date = new Date(),
-): Promise<UserRow> {
-  return withConstraintTranslation(async () => {
-    const [row] = await db
-      .insert(users)
-      .values({
-        id: newId(),
-        email: input.email,
-        fullName: input.fullName,
-        passwordHash: input.hash,
-        passwordSalt: input.salt,
-        passwordIterations: input.iterations,
-        role: input.role ?? 'operator',
-        status: input.status ?? 'active',
-        failedLoginAttempts: 0,
-        lockedUntil: null,
-        lastLoginAt: null,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .returning();
-
-    if (row === undefined) {
-      throw new Error('El INSERT del usuario no devolvio ninguna fila.');
-    }
-    return row;
-  });
-}
-
-/** Rota el digest de la contrasena; no toca el estado de bloqueo. */
-export async function updateUserPassword(
-  db: Database,
-  id: string,
-  digest: PasswordDigest,
-  now: Date = new Date(),
-): Promise<UserRow | null> {
-  const [row] = await db
-    .update(users)
-    .set({
-      passwordHash: digest.hash,
-      passwordSalt: digest.salt,
-      passwordIterations: digest.iterations,
-      updatedAt: now,
-    })
-    .where(eq(users.id, id))
-    .returning();
-  return row ?? null;
-}
-
-/** Persiste el resultado de un login fallido (racha y bloqueo). */
-export async function updateUserLoginFailure(
-  db: Database,
-  id: string,
-  state: LoginFailureState,
-  now: Date = new Date(),
-): Promise<UserRow | null> {
-  const [row] = await db
-    .update(users)
-    .set({
-      failedLoginAttempts: state.failedLoginAttempts,
-      lockedUntil: state.lockedUntil,
-      updatedAt: now,
-    })
-    .where(eq(users.id, id))
-    .returning();
-  return row ?? null;
-}
-
-/** Reinicia la racha de fallos y registra el ultimo acceso correcto. */
-export async function updateUserLoginSuccess(
-  db: Database,
-  id: string,
-  now: Date = new Date(),
-): Promise<UserRow | null> {
-  const [row] = await db
-    .update(users)
-    .set({
-      failedLoginAttempts: 0,
-      lockedUntil: null,
-      lastLoginAt: now,
-      updatedAt: now,
-    })
-    .where(eq(users.id, id))
-    .returning();
-  return row ?? null;
 }
 
 export async function insertSession(

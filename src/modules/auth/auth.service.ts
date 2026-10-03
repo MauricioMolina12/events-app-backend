@@ -2,20 +2,23 @@ import type { AuthConfig } from '../../config/env';
 import { AppError } from '../../core/errors/app-error';
 import { ErrorCode } from '../../core/errors/error-codes';
 import type { Database } from '../../db/client';
+import {
+  findUserByEmail,
+  findUserById,
+  updateUserLoginFailure,
+  updateUserLoginSuccess,
+  type UserRow,
+} from '../users/users.repository';
 import { timingSafeDigest, verifyPassword } from './password';
 import {
   countRecentFailedAttempts,
   findSessionByTokenHash,
-  findUserById,
-  findUserByEmail,
   insertAuthAttempt,
   insertSession,
   revokeSession,
+  revokeUserSessions,
   touchSession,
-  updateUserLoginFailure,
-  updateUserLoginSuccess,
   type SessionRow,
-  type UserRow,
 } from './auth.repository';
 import { hashSessionToken, issueSessionToken, sessionExpiresAt } from './session';
 
@@ -233,6 +236,22 @@ export async function logoutByToken(
 
   const session = await findSessionByTokenHash(db, await hashSessionToken(token));
   return session === null ? false : logout(db, session.id, now);
+}
+
+/**
+ * Revoca todas las sesiones vivas de un usuario.
+ *
+ * La usan los cambios de contrasena y la desactivacion de cuentas del modulo de
+ * usuarios: sin esto, un token emitido antes del cambio seguiria siendo valido
+ * hasta expirar. Devuelve cuantas sesiones se cerraron.
+ */
+export async function revokeAllSessions(
+  db: Database,
+  userId: string,
+  reason: string,
+  now: Date = new Date(),
+): Promise<number> {
+  return revokeUserSessions(db, userId, reason, now);
 }
 
 /** Multiplicador del bloqueo para el numero de fallos de la ventana. */
