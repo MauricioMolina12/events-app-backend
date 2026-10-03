@@ -1,7 +1,13 @@
-import { drizzle } from 'drizzle-orm/d1';
+import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1';
+import * as schema from './schema';
 
-/** Conexion Drizzle usada por los repositorios. */
-export type Database = ReturnType<typeof drizzle>;
+/**
+ * Conexion Drizzle usada por los repositorios.
+ *
+ * El esquema se pasa completo para habilitar la API relacional (`db.query.*`)
+ * ademas del constructor de consultas.
+ */
+export type Database = DrizzleD1Database<typeof schema>;
 
 /**
  * Crea la conexion Drizzle sobre el binding D1.
@@ -10,7 +16,7 @@ export type Database = ReturnType<typeof drizzle>;
  * compartir clientes entre peticiones es una fuente clasica de bugs.
  */
 export function createDb(env: CloudflareBindings): Database {
-  return drizzle(env.DB);
+  return drizzle(env.DB, { schema });
 }
 
 export type DatabaseStatus = 'up' | 'down' | 'not_configured';
