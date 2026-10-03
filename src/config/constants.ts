@@ -20,3 +20,25 @@ export const OPENAPI_DESCRIPTION = [
   '- Los errores se identifican por error.code (contrato estable), no por el mensaje.',
   '- Las fechas se expresan en ISO-8601 UTC.',
 ].join('\n');
+
+/**
+ * Valores por defecto de la configuracion de autenticacion.
+ *
+ * Son el respaldo cuando el `var` correspondiente no esta definido y la fuente
+ * unica que usan las primitivas puras (por ejemplo `hashPassword`), de modo que
+ * el coste de derivacion no se duplique en cada archivo.
+ */
+export const AUTH_DEFAULTS = {
+  /** PBKDF2-SHA256: por debajo de 210 000 el coste deja de ser disuasorio. */
+  pbkdf2Iterations: 210_000,
+  /** Duracion de una sesion; se renueva volviendo a iniciar sesion. */
+  sessionTtlHours: 12,
+  /** Nombre de la cookie que transporta el token opaco. */
+  cookieName: 'events_session',
+  /** Fallos consecutivos antes del primer bloqueo. */
+  maxFailedAttempts: 5,
+  /** Duracion del primer bloqueo, en minutos. */
+  lockoutMinutes: 15,
+  /** Tope del bloqueo progresivo: 15, 30, 60, 120... hasta 8x la base. */
+  maxLockoutMultiplier: 8,
+} as const;

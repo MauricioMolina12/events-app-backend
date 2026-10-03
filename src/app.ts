@@ -7,6 +7,7 @@ import { corsMiddleware } from './core/middleware/cors';
 import { requestLoggerMiddleware } from './core/middleware/logger';
 import { requestIdMiddleware } from './core/middleware/request-id';
 import type { AppEnv } from './core/types/context';
+import { registerAuthRoutes } from './modules/auth/auth.routes';
 import { registerHealthRoutes } from './modules/health/health.routes';
 
 /**
@@ -38,6 +39,7 @@ export function createApp(): OpenAPIHono<AppEnv> {
 
   /* --- Rutas de negocio versionadas --- */
   const api = new OpenAPIHono<AppEnv>({ strict: false });
+  registerAuthRoutes(api);
   registerHealthRoutes(api);
   app.route(API_PREFIX, api);
 
@@ -49,7 +51,10 @@ export function createApp(): OpenAPIHono<AppEnv> {
       version: SERVICE_VERSION,
       description: OPENAPI_DESCRIPTION,
     },
-    tags: [{ name: 'Sistema', description: 'Estado del servicio y documentacion.' }],
+    tags: [
+      { name: 'Sistema', description: 'Estado del servicio y documentacion.' },
+      { name: 'Autenticacion', description: 'Sesion de operadores y administradores.' },
+    ],
   });
   app.get(`${API_PREFIX}/docs`, swaggerUI({ url: `${API_PREFIX}/openapi.json` }));
 

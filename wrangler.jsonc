@@ -15,7 +15,14 @@
   // Los secretos se gestionan con `wrangler secret put` (remoto) o `.dev.vars` (local).
   "vars": {
     "ENVIRONMENT": "local",
-    "CORS_ORIGINS": "http://localhost:5173,http://localhost:8788"
+    "CORS_ORIGINS": "http://localhost:5173,http://localhost:8788",
+
+    // Autenticacion (ver src/config/env.ts para los limites admitidos).
+    "PBKDF2_ITERATIONS": "210000",
+    "SESSION_TTL_HOURS": "12",
+    "SESSION_COOKIE_NAME": "events_session",
+    "AUTH_MAX_FAILED_ATTEMPTS": "5",
+    "AUTH_LOCKOUT_MINUTES": "15"
   },
 
   "d1_databases": [
@@ -34,7 +41,14 @@
     "production": {
       "vars": {
         "ENVIRONMENT": "production",
-        "CORS_ORIGINS": "https://app.example.com"
+        "CORS_ORIGINS": "https://app.example.com",
+
+        // Autenticacion (ver src/config/env.ts para los limites admitidos).
+        "PBKDF2_ITERATIONS": "210000",
+        "SESSION_TTL_HOURS": "12",
+        "SESSION_COOKIE_NAME": "events_session",
+        "AUTH_MAX_FAILED_ATTEMPTS": "5",
+        "AUTH_LOCKOUT_MINUTES": "15"
       },
       "d1_databases": [
         {
