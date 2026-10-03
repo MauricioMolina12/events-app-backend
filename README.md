@@ -50,10 +50,20 @@ Los valores no sensibles viven en `wrangler.jsonc` (`vars`). Los secretos:
 | Local      | `.dev.vars` (partir de `.dev.vars.example`; esta en .gitignore) |
 | Produccion | `wrangler secret put <NOMBRE> --env production`              |
 
-| Variable       | Descripcion                                                            |
-| -------------- | ---------------------------------------------------------------------- |
-| `ENVIRONMENT`  | `local` \| `development` \| `production`. Un valor invalido produce 500. |
-| `CORS_ORIGINS` | Lista blanca de origenes separada por comas. Vacia = ningun origen permitido. |
+| Variable                   | Descripcion                                                            |
+| -------------------------- | ---------------------------------------------------------------------- |
+| `ENVIRONMENT`              | `local` \| `development` \| `production`. Un valor invalido produce 500. |
+| `CORS_ORIGINS`             | Lista blanca de origenes separada por comas. Vacia = ningun origen permitido. |
+| `PBKDF2_ITERATIONS`        | Iteraciones de PBKDF2-SHA256 (1000-1000000; por defecto 210 000).      |
+| `SESSION_TTL_HOURS`        | Vigencia de una sesion, en horas (1-720; por defecto 12).              |
+| `SESSION_COOKIE_NAME`      | Nombre de la cookie de sesion (por defecto `events_session`).          |
+| `AUTH_MAX_FAILED_ATTEMPTS` | Fallos por cuenta en 15 min antes del primer bloqueo (1-100; 5).       |
+| `AUTH_LOCKOUT_MINUTES`     | Duracion del primer bloqueo, en minutos (1-1440; 15).                  |
+
+Ninguna de las variables de autenticacion es un secreto: el salt y el derivado
+PBKDF2 se generan **por usuario** al dar de alta la cuenta. Un `var` presente pero
+fuera de rango produce 500 en la primera peticion: es preferible fallar ruidosamente
+a arrancar con un coste de hashing inseguro.
 
 ---
 
@@ -70,6 +80,7 @@ Los valores no sensibles viven en `wrangler.jsonc` (`vars`). Los secretos:
 | `npm run db:generate`       | Genera migraciones SQL con Drizzle Kit desde el esquema.         |
 | `npm run db:migrate:local`  | Aplica migraciones a la D1 local.                                |
 | `npm run db:migrate:remote` | Aplica migraciones a la D1 de produccion.                        |
+| `npm run db:seed:local`     | Carga datos de desarrollo en la D1 local (`src/db/seeds/dev.sql`). |
 
 ---
 
@@ -88,6 +99,17 @@ npm run db:migrate:local
 En local el placeholder es suficiente: Wrangler crea una base SQLite aislada en
 `.wrangler/`.
 
+Para cargar datos de ejemplo:
+
+```bash
+npm run db:seed:local
+```
+
+El seed (`src/db/seeds/dev.sql`) es idempotente: usa identificadores fijos y
+`ON CONFLICT DO NOTHING`. No siembra usuarios porque la contrasena se deriva con
+PBKDF2 dentro del Worker: el administrador inicial se creara con el comando de
+bootstrap (Fase 4).
+
 ### Reglas de acceso a datos
 
 D1 **no soporta transacciones interactivas** (`BEGIN`/`COMMIT` estan
@@ -101,6 +123,40 @@ prohibidos). La atomicidad se consigue con:
 Limites a respetar: 100 parametros por consulta, 100 KB por sentencia, 30 s por
 consulta y ~1000 subpeticiones por invocacion (plan Paid).
 
+### Modelo de datos
+
+13 tablas definidas en `src/db/schema/` (un archivo por grupo) y materializadas en
+`migrations/`, que es **SQL generado** con `npm run db:generate` y no se edita a
+mano.
+
+| Grupo       | Tablas                                                     |
+| ----------- | ---------------------------------------------------------- |
+| Catalogo    | `events`, `establishments`, `event_establishments`         |
+| Registro    | `registrations`, `registration_companions`                 |
+| Operacion   | `shifts`, `shift_assignments`, `qr_codes`, `qr_deliveries`  |
+| Cupos       | `capacity_adjustments`                                     |
+| Auth        | `users`, `sessions`, `auth_attempts`                       |
+
+- `event_establishments` es la unidad real de cupo: `confirmed_titulares` y
+  `confirmed_companions` son la fuente de verdad y los `CHECK` de la tabla impiden
+  que se sobrepasen. Reservar es `UPDATE ... WHERE confirmed_titulares <
+  titular_capacity`: si no cambia ninguna fila, no habia cupo.
+- Un documento es unico por **participacion** (evento + sede), no por evento: la
+  misma persona puede asistir a varias sedes. Los registros cancelados quedan fuera
+  del indice, de modo que se puede volver a inscribir el mismo documento.
+- Los indices unicos parciales expresan invariantes que antes vivian en el codigo:
+  un QR activo por registro, una asignacion activa por registro y un ajuste de cupo
+  pendiente por participacion.
+
+### Traduccion de restricciones
+
+`src/db/constraints.ts` es el **unico** lugar donde se interpretan los mensajes de
+error de SQLite. Los repositorios envuelven sus escrituras en
+`withConstraintTranslation`, asi que un choque de indice llega arriba como
+`AppError` con codigo de negocio (`DUPLICATE_REGISTRATION`,
+`TITULAR_CAPACITY_EXCEEDED`, ...) en lugar de un 500. Detalles en
+[`docs/architecture/overview.md`](docs/architecture/overview.md).
+
 ---
 
 ## Estructura del proyecto
@@ -113,15 +169,28 @@ src/
     constants.ts            # constantes estaticas (prefijo /api/v1, metadatos)
     env.ts                  # lectura y validacion de bindings y vars
   core/
+    crypto/                 # codificacion (base64url/hex) y SHA-256
     errors/                 # AppError, catalogo de codigos, manejador global
-    http/                   # sobres de respuesta y esquemas compartidos
+    http/                   # sobres de respuesta, esquemas y respuesta de error
     middleware/             # request-id, logging estructurado, CORS
     types/                  # contexto de Hono (Bindings + Variables)
   db/
     client.ts               # conexion Drizzle sobre el binding D1
+    constraints.ts          # traduccion de restricciones de SQLite
+    helpers.ts              # ULID y utilidades de escritura
+    schema/                 # esquema Drizzle: 13 tablas, un archivo por grupo
+    seeds/dev.sql           # datos de desarrollo (npm run db:seed:local)
   modules/
+    auth/                   # login/logout/me, sesiones y guards de rol
     health/                 # modulo de estado del servicio
+    events/                 # repositorio del catalogo de eventos
+    establishments/         # repositorio de sedes
+    participations/         # cupos por sede: reservar y liberar
+    registrations/          # altas y cancelaciones atomicas
+migrations/                 # SQL generado por Drizzle Kit + _journal.json
 tests/
+  setup/                    # migraciones de pruebas sobre la D1 de workerd
+  helpers/                  # limpieza entre casos y conteos
   unit/                     # pruebas de unidades puras
   integration/              # pruebas de la app completa en workerd
 docs/
@@ -131,6 +200,42 @@ docs/
 Cada modulo de negocio sigue el patron `*.routes.ts` -> `*.service.ts` ->
 `*.repository.ts`: las rutas validan y serializan, los servicios contienen las
 reglas de negocio y los repositorios son los unicos que hablan con D1.
+
+---
+
+## Autenticacion
+
+Sesiones **opacas** en cookie `HttpOnly`: la contrasena se deriva con PBKDF2-SHA256 y
+de D1 solo se lee el SHA-256 del token de sesion, nunca el token en claro.
+
+| Metodo | Ruta                   | Acceso     | Descripcion                                      |
+| ------ | ---------------------- | ---------- | ------------------------------------------------ |
+| POST   | `/api/v1/auth/login`   | Publico    | Valida credenciales y emite la cookie de sesion.  |
+| POST   | `/api/v1/auth/logout`  | Publico    | Revoca la sesion y borra la cookie (idempotente). |
+| GET    | `/api/v1/auth/me`      | Con sesion | Devuelve el usuario y la sesion activa.           |
+
+```bash
+curl -i -X POST http://localhost:8787/api/v1/auth/login \
+  -H 'content-type: application/json' \
+  -d '{"email":"admin@example.com","password":"<contrasena>"}'
+```
+
+- Cuerpo de exito de `login` y `me`: `{ user: { id, email, fullName, role, status },
+  session: { id, expiresAt } }`. Un usuario sin sesion se crea con el comando de
+  bootstrap (Fase 4, pendiente); hoy no hay endpoint de alta de usuarios.
+- Roles: `admin` y `operator` (`src/db/schema/auth.ts`). `requireAuth` resuelve la
+  cookie y publica el usuario en el contexto; `requireRole('admin')` protege las
+  rutas de administracion que se anadiran en el resto de la Fase 4.
+- Codigos de rechazo: `INVALID_CREDENTIALS` (identico para email inexistente y
+  contrasena incorrecta, para no permitir enumeracion de cuentas), `ACCOUNT_LOCKED`,
+  `ACCOUNT_DISABLED`, `UNAUTHENTICATED`, `SESSION_EXPIRED`, `SESSION_REVOKED` y
+  `FORBIDDEN`.
+- Bloqueo progresivo: superados `AUTH_MAX_FAILED_ATTEMPTS` fallos de la misma cuenta
+  dentro de una ventana de 15 minutos, el bloqueo dura `AUTH_LOCKOUT_MINUTES` y se
+  duplica en cada ronda posterior (tope 8x). Los intentos viven en `auth_attempts`
+  con la IP **hasheada**, no en claro.
+- La cookie se marca `Secure` fuera de `local` (en local el desarrollo es http y el
+  navegador descartaria una cookie `Secure`).
 
 ---
 
@@ -162,9 +267,14 @@ reglas de negocio y los repositorios son los unicos que hablan con D1.
 | ---- | --------------------------------------------------------- | ---------- |
 | 1    | Analisis y decisiones de arquitectura                     | Completada |
 | 2    | Fundamentos: scaffold, config, middleware, health, tests  | Completada |
-| 3    | Modelo de datos D1 y migraciones Drizzle                  | Pendiente  |
-| 4    | Auth (sesiones, PBKDF2), RBAC y CRUD de eventos           | Pendiente  |
+| 3    | Modelo de datos D1, migraciones Drizzle y repositorios base | Completada |
+| 4    | Auth (sesiones, PBKDF2), RBAC y CRUD de eventos           | En curso   |
 | 5    | Registro publico, codigos QR, turnos y check-in           | Pendiente  |
 | 6    | Endurecimiento: rate limiting, observabilidad, despliegue | Pendiente  |
 
 Decisiones y justificaciones: [`docs/architecture/overview.md`](docs/architecture/overview.md).
+
+La **Fase 4** esta entregada a medias y asi se refleja aqui: el modulo de auth
+(login, logout, `me`, sesiones opacas, PBKDF2 y guards `requireAuth`/`requireRole`)
+esta cerrado y probado; quedan pendientes el alta de usuarios con `LAST_ADMIN_PROTECTED`,
+el CRUD de eventos/establecimientos y el comando de bootstrap del primer administrador.

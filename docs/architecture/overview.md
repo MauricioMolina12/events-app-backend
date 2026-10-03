@@ -51,6 +51,14 @@ HTTP (Hono)
 Codigo transversal en `src/core/` (errores, sobres de respuesta, middleware) y
 `src/config/` (constantes y lectura de bindings).
 
+El acceso a datos se concentra en `src/db/`:
+
+- `client.ts`: conexion Drizzle sobre el binding D1.
+- `schema/`: esquema de las 13 tablas, un archivo por grupo.
+- `constraints.ts`: traduccion de los mensajes de restriccion de SQLite.
+- `helpers.ts`: ULID y utilidades de escritura.
+- `seeds/dev.sql`: datos de desarrollo (`npm run db:seed:local`).
+
 ---
 
 ## 4. Ciclo de vida de una peticion
@@ -111,6 +119,67 @@ transacciones interactivas. Por eso la atomicidad se obtiene con:
    documento unico por evento + establecimiento).
 4. `env.DB.batch([...])` cuando el grupo debe aplicarse como un todo.
 
+### Modelo de datos
+
+13 tablas, definidas en `src/db/schema/` (un archivo por grupo) y materializadas en
+`migrations/`, que es **SQL generado** con `npm run db:generate` y no se edita a
+mano.
+
+| Grupo     | Tablas                                                     | Nota de diseno                                                     |
+| --------- | ---------------------------------------------------------- | ------------------------------------------------------------------ |
+| Catalogo  | `events`, `establishments`, `event_establishments`         | La participacion (evento + sede) es la unidad real de cupo.        |
+| Registro  | `registrations`, `registration_companions`                 | Un documento es unico por participacion, no por evento.            |
+| Operacion | `shifts`, `shift_assignments`, `qr_codes`, `qr_deliveries`  | Un QR activo por registro; el contenido no lleva datos personales. |
+| Cupos     | `capacity_adjustments`                                     | Historial completo: cupo anterior, propuesto y quien resolvio.     |
+| Auth      | `users`, `sessions`, `auth_attempts`                       | Solo el hash del token de sesion; intentos para el bloqueo.        |
+
+Convenciones: `id` es un ULID en texto (ordenable, sin coordinacion), las fechas
+son epoch en milisegundos UTC y todas las tablas de dominio llevan `created_at` y
+`updated_at`.
+
+### Cupo sin transacciones
+
+`event_establishments.confirmed_titulares` y `confirmed_companions` son la fuente
+de verdad del cupo consumido. Reservar cupo es:
+
+```sql
+UPDATE event_establishments
+   SET confirmed_titulares = confirmed_titulares + 1
+ WHERE id = ? AND status = 'open'
+   AND confirmed_titulares < titular_capacity
+```
+
+Si la sentencia no cambia filas, no habia cupo: no hace falta leer antes, y por
+tanto no hay ventana de carrera. Los `CHECK` de la tabla
+(`event_establishments_titular_capacity_check` y `..._companion_capacity_check`)
+son la red de seguridad para cualquier camino que se salte la precondicion.
+
+### Traduccion de restricciones
+
+`src/db/constraints.ts` es el unico modulo que interpreta mensajes de error de
+SQLite. Los repositorios envuelven sus escrituras en `withConstraintTranslation`,
+de modo que un choque de indice o de `CHECK` sale como `AppError` de negocio
+(`DUPLICATE_REGISTRATION`, `PARTICIPATION_ALREADY_EXISTS`,
+`TITULAR_CAPACITY_EXCEEDED`, ...) y nunca como 500.
+
+Dos particularidades del driver que ese modulo absorbe:
+
+1. D1 anexa el codigo extendido al texto de SQLite:
+   `UNIQUE constraint failed: establishments.code: SQLITE_CONSTRAINT (extended: SQLITE_CONSTRAINT_UNIQUE)`.
+2. Drizzle envuelve el fallo en `DrizzleQueryError` (`Failed query: ...`) y deja el
+   texto real del driver en `cause`.
+
+Por eso la resolucion recorre la cadena de `cause` y corta en el primer `:` antes
+de comparar. Un indice unico nuevo debe registrarse en `UNIQUE_INVARIANTS`; si no,
+su violacion se reportaria como error interno.
+
+### Claves foraneas
+
+El esquema declara `FOREIGN KEY` con `ON DELETE cascade | restrict | set null`. D1
+las aplica: las pruebas de integracion lo comprueban, ya que el borrado de un
+establecimiento con participaciones y la insercion huerfana fallan con
+`FOREIGN KEY constraint failed`.
+
 ---
 
 ## 7. Entornos y configuracion
@@ -135,8 +204,13 @@ transacciones interactivas. Por eso la atomicidad se obtiene con:
 | CPU por peticion  | 10 ms | 30 s |
 | Subpeticiones     | 50    | 1000 |
 
-El hashing PBKDF2-SHA256 con >= 210 000 iteraciones consume ~100-200 ms de CPU, por
-lo que **produccion requiere el plan Paid**.
+El hashing PBKDF2-SHA256 con 210 000 iteraciones cuesta **~110-230 ms de CPU por
+operacion**, medido dentro de workerd con los parametros de produccion: 136.8 ms de
+media al derivar y 119.6 ms al verificar (~0.65 ms por cada 1000 iteraciones). Una
+sola peticion de login agota mas de diez veces los 10 ms del plan gratuito, por lo
+que **produccion requiere el plan Paid** (decision #1). Bajar `PBKDF2_ITERATIONS`
+para caber en el plan gratuito degradaria la proteccion frente a fuerza bruta: no es
+una opcion.
 
 ---
 
@@ -152,15 +226,46 @@ lo que **produccion requiere el plan Paid**.
   adaptador no-op, de modo que conectar un proveedor real no toca el dominio.
 - Toda entrada se valida con Zod antes de llegar al repositorio.
 
+### Sesiones y RBAC
+
+- Token **opaco** de 256 bits en base64url. En `sessions` solo se guarda su SHA-256
+  (`sessions_token_hash_unique`): un volcado de D1 no permite suplantar a nadie y la
+  revocacion es inmediata (`revoked_at` + `revoked_reason`).
+- Cookie `HttpOnly`, `SameSite=Lax`, `Path=/` y `Secure` fuera de `local`. El token en
+  claro existe una sola vez: en el `Set-Cookie` del login. Se firma con TTL
+  (`SESSION_TTL_HOURS`) y no se rota en cada peticion.
+- `resolveAuth` (`auth.service.ts`) distingue `missing`, `expired`, `revoked` y
+  `disabled` porque el cliente debe reaccionar distinto; `requireAuth` los traduce a
+  `UNAUTHENTICATED`, `SESSION_EXPIRED`, `SESSION_REVOKED` y `ACCOUNT_DISABLED`, y
+  publica el usuario y la sesion en el contexto. `requireRole` solo comprueba el rol y
+  **exige** que `requireAuth` haya corrido antes: no repite la consulta.
+- `sessions.last_used_at` se actualiza con pereza (como maximo cada 5 minutos) para no
+  gastar una escritura de D1 por peticion.
+- Un email inexistente deriva un PBKDF2 igualmente y descarta el resultado: el tiempo
+  de respuesta no revela si la cuenta existe (`INVALID_CREDENTIALS` en ambos casos).
+- Parametros: `PBKDF2_ITERATIONS`, `SESSION_TTL_HOURS`, `SESSION_COOKIE_NAME`,
+  `AUTH_MAX_FAILED_ATTEMPTS` y `AUTH_LOCKOUT_MINUTES`. Un valor fuera de rango produce
+  500 en la primera peticion.
+
 ---
 
 ## 9. Pruebas
 
 - Se ejecutan dentro de workerd con `@cloudflare/vitest-plugin` + Miniflare, usando
   la misma configuracion de `wrangler.jsonc` (incluido el binding D1).
-- `tests/unit`: unidades puras (errores, normalizacion, utilidades).
-- `tests/integration`: la app completa via `SELF.fetch` (contrato de errores, CORS,
-  OpenAPI, health y, en fases siguientes, flujos con D1).
+- `tests/unit`: unidades puras (errores, traduccion de restricciones, utilidades,
+  codificacion, PBKDF2, tokens de sesion y guards de rol).
+- `tests/integration`: la app completa via `SELF.fetch` (incluido el ciclo
+  `login` -> `me` -> `logout` con cookie y sesion reales en D1) y, desde la Fase 3, los
+  repositorios contra una **D1 real** dentro de workerd (sin dobles de prueba).
+- Las migraciones de `migrations/` se aplican con `applyD1Migrations` en
+  `tests/setup/`, que recibe el SQL por el binding `TEST_MIGRATIONS` porque workerd
+  no puede leer el sistema de archivos. `tests/helpers/database.ts` centraliza la
+  limpieza entre casos y los conteos de filas.
+- Los tests de esquema fijan el formato real que entrega el driver
+  (`UNIQUE constraint failed: <columnas>: SQLITE_CONSTRAINT (extended: ...)`,
+  `CHECK constraint failed: <nombre>`, `FOREIGN KEY constraint failed`): si D1
+  cambiara ese texto, fallarian aqui antes que en produccion.
 - **Aislamiento por archivo**: el plugin revierte el storage al terminar cada
   archivo, no cada test. Los tests de un mismo archivo comparten estado, por lo que
   toda prueba que escriba datos debe limpiar en `beforeEach`.
@@ -173,8 +278,8 @@ lo que **produccion requiere el plan Paid**.
 | ---- | -------------------------------------------------------------------------- |
 | 1    | Analisis y decisiones de arquitectura (completada)                         |
 | 2    | Fundamentos: config, middleware, errores, health, OpenAPI, tests (completada) |
-| 3    | Esquema D1 completo, migraciones Drizzle y repositorios base               |
-| 4    | Auth con sesiones, RBAC y CRUD de eventos/establecimientos                 |
+| 3    | Esquema D1 completo, migraciones Drizzle y repositorios base (completada)  |
+| 4    | Auth con sesiones, RBAC y CRUD de eventos/establecimientos (auth y RBAC listos) |
 | 5    | Registro publico, QR, turnos, check-in y gestion de cupos                  |
 | 6    | Endurecimiento: rate limiting, observabilidad, despliegue y runbook        |
 
@@ -194,3 +299,10 @@ lo que **produccion requiere el plan Paid**.
 | 8  | Documento unico por (evento, establecimiento)  | La misma persona puede asistir a varios establecimientos.        |
 | 9  | UTC en almacenamiento, `America/Bogota` en UI  | Elimina ambiguedades de zona horaria.                            |
 | 10 | Conventional Commits + npm                     | Historial legible y automatizable.                               |
+| 11 | Contadores `confirmed_*` como fuente de cupo    | Permite reservar con una sentencia condicional, sin transacciones. |
+| 12 | Traduccion de restricciones en un solo modulo   | Los repositorios devuelven `AppError` de negocio en lugar de 500.  |
+| 13 | Recorrer la cadena de `cause` al interpretar    | Drizzle envuelve el error y D1 anexa el codigo extendido.          |
+| 14 | Migraciones generadas con Drizzle Kit           | El esquema es la fuente unica; el SQL de `migrations/` no se edita. |
+| 15 | Bloqueo progresivo con tope de 8x               | Superado el umbral, la espera se duplica en cada ronda: frena la fuerza bruta sin bloquear la cuenta indefinidamente. |
+| 16 | IP hasheada (SHA-256) en `auth_attempts`        | Permite correlacionar intentos sin almacenar un dato personal.     |
+| 17 | Respuesta identica si el email no existe        | Derivar PBKDF2 y responder `INVALID_CREDENTIALS` en ambos casos evita la enumeracion de cuentas. |
