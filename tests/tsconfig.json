@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    // Habilita los tipos del modulo `cloudflare:test` (env, SELF, fetchMock...).
+    "types": ["@cloudflare/vitest-plugin"],
+    "noEmit": true
+  },
+  "include": ["./**/*.ts", "../src/**/*.ts", "../worker-configuration.d.ts"]
+}

@@ -1,38 +1,49 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+
   "name": "events",
   "main": "src/index.ts",
-  "compatibility_date": "2026-10-03"
-  // "compatibility_flags": [
-  //   "nodejs_compat"
-  // ],
-  // "vars": {
-  //   "MY_VAR": "my-variable"
-  // },
-  // "kv_namespaces": [
-  //   {
-  //     "binding": "MY_KV_NAMESPACE",
-  //     "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-  //   }
-  // ],
-  // "r2_buckets": [
-  //   {
-  //     "binding": "MY_BUCKET",
-  //     "bucket_name": "my-bucket"
-  //   }
-  // ],
-  // "d1_databases": [
-  //   {
-  //     "binding": "MY_DB",
-  //     "database_name": "my-database",
-  //     "database_id": ""
-  //   }
-  // ],
-  // "ai": {
-  //   "binding": "AI"
-  // },
-  // "observability": {
-  //   "enabled": true,
-  //   "head_sampling_rate": 1
-  // }
+  "compatibility_date": "2026-10-03",
+
+  // Workers Logs. Los middlewares emiten JSON estructurado (ver src/core/middleware).
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+
+  // Variables NO sensibles del entorno por defecto (desarrollo local).
+  // Los secretos se gestionan con `wrangler secret put` (remoto) o `.dev.vars` (local).
+  "vars": {
+    "ENVIRONMENT": "local",
+    "CORS_ORIGINS": "http://localhost:5173,http://localhost:8788"
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "events-db",
+      // Placeholder: sustituir por el ID real de `wrangler d1 create events-db`.
+      // En local, `wrangler dev` y `wrangler d1 migrations apply --local` funcionan con este valor.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // Entorno de produccion: `npm run deploy` (wrangler deploy --env production).
+  "env": {
+    "production": {
+      "vars": {
+        "ENVIRONMENT": "production",
+        "CORS_ORIGINS": "https://app.example.com"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "events-db",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "migrations"
+        }
+      ]
+    }
+  }
 }

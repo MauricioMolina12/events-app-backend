@@ -1,19 +1,11 @@
-import { Hono } from 'hono';
+import { createApp } from './app';
 
-const app = new Hono();
-
-app.get('/', (c) => {
-  return c.json({
-    message: 'Barby & Cupidos API',
-    status: 'online',
-  });
-});
-
-app.get('/api/health', (c) => {
-  return c.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-  });
-});
+/**
+ * Punto de entrada del Worker.
+ *
+ * `wrangler.jsonc` apunta a este archivo (`main`). La aplicacion Hono se
+ * construye una sola vez por isolate; todo el estado mutable vive en D1.
+ */
+const app = createApp();
 
 export default app;

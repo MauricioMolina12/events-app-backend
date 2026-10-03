@@ -1,0 +1,10 @@
+# Plantilla de variables locales. Copiar a `.dev.vars` (esta ignorado por Git).
+#
+# `wrangler dev` carga `.dev.vars` y sobreescribe los `vars` de wrangler.jsonc.
+# Los secretos reales NUNCA se versionan.
+
+# Entorno de ejecucion: local | development | production
+ENVIRONMENT=local
+
+# Origenes autorizados para CORS, separados por comas.
+CORS_ORIGINS=http://localhost:5173,http://localhost:8788

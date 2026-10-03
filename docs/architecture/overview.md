@@ -1,0 +1,196 @@
+# Arquitectura - Events API
+
+Documento de referencia con las decisiones tecnicas del backend de registro, QR
+y turnos para los eventos de Barby Toys y Cupidos.
+
+---
+
+## 1. Proposito y alcance
+
+La API cubre el ciclo completo de un evento:
+
+1. **Administracion**: usuarios, eventos, establecimientos, cupos y ventanas de registro.
+2. **Registro publico**: alta de participantes, acompanantes y control de duplicados.
+3. **Emision de QR**: un codigo por registro (titular), servido por el backend como SVG.
+4. **Operacion en puerta**: verificacion de QR, asignacion de turno y control de acceso.
+5. **Gestion de cupos**: ajustes de capacidad con flujo de aprobacion y redistribucion.
+
+---
+
+## 2. Principios
+
+- **Monolito modular**: un solo Worker desplegable, con fronteras de modulo
+  explicitas. La separacion en servicios solo se justificara por necesidad real.
+- **Dependencias dirigidas hacia dentro**: `routes` -> `services` -> `repositories`.
+  Las reglas de negocio nunca dependen de Hono ni de D1 directamente.
+- **Contrato primero**: cada endpoint se declara con `createRoute` + esquemas Zod,
+  de modo que validacion, tipos y documentacion OpenAPI provienen de una sola fuente.
+- **Todo o nada**: no se usan transacciones interactivas (D1 no las soporta); la
+  integridad se garantiza con indices y sentencias condicionales.
+- **Sin estado en el isolate**: nada de caches en memoria que sobrevivan a una
+  peticion; el estado vive en D1.
+
+---
+
+## 3. Capas
+
+```
+HTTP (Hono)
+  └── modules/<modulo>/<modulo>.routes.ts   validacion + serializacion + OpenAPI
+        └── modules/<modulo>/<modulo>.service.ts   reglas de negocio, sin I/O
+              └── modules/<modulo>/<modulo>.repository.ts   acceso a D1 via Drizzle
+```
+
+- **routes**: define `createRoute`, recibe datos ya validados, delega y responde.
+  No contiene `if` de negocio.
+- **service**: recibe dependencias (`db`, reloj, generador de QR) por parametro y
+  devuelve resultados de dominio o lanza `AppError`. Es la unica capa con tests unitarios puros.
+- **repository**: unico punto que emite SQL/Drizzle. Recibe y devuelve tipos de
+  dominio, nunca tipos HTTP.
+
+Codigo transversal en `src/core/` (errores, sobres de respuesta, middleware) y
+`src/config/` (constantes y lectura de bindings).
+
+---
+
+## 4. Ciclo de vida de una peticion
+
+1. `requestIdMiddleware`: asigna/reutiliza `x-request-id` y lo publica en la respuesta.
+2. `requestLoggerMiddleware`: cronometra y emite un log JSON estructurado al finalizar.
+3. `corsMiddleware`: aplica lista blanca de origenes y `credentials: true`.
+4. Enrutado versionado bajo `/api/v1`.
+5. Validacion con `defaultHook` de `@hono/zod-openapi`: un ZodError se convierte
+   en `AppError` 422 y cae en el manejador global (una sola forma de respuesta).
+6. `app.onError` -> `createErrorHandler`: normaliza, registra y serializa.
+7. `app.notFound` -> `createNotFoundHandler`: 404 con codigo `ROUTE_NOT_FOUND`.
+
+Privacidad en logs: se registra `path` **sin query string** (los enlaces de
+verificacion llevan tokens) y nunca cabeceras ni cuerpos.
+
+---
+
+## 5. Modelo de errores
+
+- `AppError` = codigo de negocio + estado HTTP + mensaje + `details` + `expose`.
+- El catalogo de codigos vive en `src/core/errors/error-codes.ts` y es **contrato
+  publico estable**: los clientes ramifican por `code`, no por `message`.
+- `expose: false` (500 en adelante) reemplaza el mensaje por uno generico antes de
+  salir al cliente; la causa completa solo va al log.
+- Respuesta de error:
+
+  ```json
+  {
+    "success": false,
+    "error": { "code": "DUPLICATE_REGISTRATION", "message": "..." },
+    "requestId": "..."
+  }
+  ```
+
+---
+
+## 6. Acceso a datos en D1
+
+### Restricciones verificadas
+
+| Restriccion                        | Consecuencia en el diseno                                   |
+| ---------------------------------- | ----------------------------------------------------------- |
+| Sin `BEGIN`/`COMMIT`               | No se puede aislar una secuencia de lecturas y escrituras.  |
+| `batch()` es atomico               | Se usa para grupos de escrituras que deben ir juntas.       |
+| 100 parametros por consulta        | Inserciones masivas troceadas.                              |
+| 100 KB por sentencia               | Nada de blobs grandes; el QR se genera al vuelo.             |
+| ~1000 subpeticiones (plan Paid)    | Margen comodo; se evita N+1 en listados.                    |
+| Un solo hilo, auto-commit          | Las carreras se resuelven con indices unicos, no con locks. |
+
+`db.transaction()` de Drizzle **no aplica** al driver D1: no existe soporte de
+transacciones interactivas. Por eso la atomicidad se obtiene con:
+
+1. `INSERT ... ON CONFLICT DO NOTHING/UPDATE ... RETURNING` para alta idempotente.
+2. `UPDATE ... WHERE <precondicion>` + comprobar `changes` para transiciones de
+   estado (por ejemplo, asignar turno solo si sigue libre).
+3. Indices unicos parciales para invariantes (una QR activa por registro, un
+   documento unico por evento + establecimiento).
+4. `env.DB.batch([...])` cuando el grupo debe aplicarse como un todo.
+
+---
+
+## 7. Entornos y configuracion
+
+| Entorno     | Configuracion                                     | Base de datos            |
+| ----------- | ------------------------------------------------- | ------------------------ |
+| Local       | `wrangler.jsonc` (bloque raiz) + `.dev.vars`       | D1 local en `.wrangler/` |
+| Development | `wrangler dev --env development` (si se necesita)  | D1 remota de desarrollo  |
+| Production  | `wrangler deploy --env production` + secrets       | D1 remota de produccion  |
+
+- El prefijo de la API es una **constante** (`/api/v1`), no una variable: las rutas
+  de Hono se registran al construir la app, antes de tener acceso a los bindings.
+- `readRuntimeConfig(env)` valida los `vars` en cada peticion. Un `ENVIRONMENT`
+  desconocido produce 500 inmediato: es preferible fallar ruidosamente.
+- `worker-configuration.d.ts` se genera con `npm run cf-typegen` y **no se versiona**;
+  los hooks `pretypecheck` y `pretest` lo regeneran automaticamente.
+
+### Limites de plan
+
+| Recurso           | Free  | Paid |
+| ----------------- | ----- | ---- |
+| CPU por peticion  | 10 ms | 30 s |
+| Subpeticiones     | 50    | 1000 |
+
+El hashing PBKDF2-SHA256 con >= 210 000 iteraciones consume ~100-200 ms de CPU, por
+lo que **produccion requiere el plan Paid**.
+
+---
+
+## 8. Seguridad
+
+- Contrasenas: PBKDF2-SHA256 (WebCrypto), >= 210 000 iteraciones y salt por usuario.
+- Sesion: token opaco en cookie `HttpOnly`, `Secure`, `SameSite=Lax`. En D1 solo se
+  almacena el hash del token, nunca el valor en claro.
+- Fuerza bruta: tabla `auth_attempts` con bloqueo progresivo.
+- QR: sin datos personales. El contenido es un identificador aleatorio que se
+  resuelve contra la base de datos. Un QR por registro (titular) y revocable.
+- Entregas de QR: se auditan en `qr_deliveries`. El `EmailSender` inicial es un
+  adaptador no-op, de modo que conectar un proveedor real no toca el dominio.
+- Toda entrada se valida con Zod antes de llegar al repositorio.
+
+---
+
+## 9. Pruebas
+
+- Se ejecutan dentro de workerd con `@cloudflare/vitest-plugin` + Miniflare, usando
+  la misma configuracion de `wrangler.jsonc` (incluido el binding D1).
+- `tests/unit`: unidades puras (errores, normalizacion, utilidades).
+- `tests/integration`: la app completa via `SELF.fetch` (contrato de errores, CORS,
+  OpenAPI, health y, en fases siguientes, flujos con D1).
+- **Aislamiento por archivo**: el plugin revierte el storage al terminar cada
+  archivo, no cada test. Los tests de un mismo archivo comparten estado, por lo que
+  toda prueba que escriba datos debe limpiar en `beforeEach`.
+
+---
+
+## 10. Roadmap
+
+| Fase | Entregable                                                                 |
+| ---- | -------------------------------------------------------------------------- |
+| 1    | Analisis y decisiones de arquitectura (completada)                         |
+| 2    | Fundamentos: config, middleware, errores, health, OpenAPI, tests (completada) |
+| 3    | Esquema D1 completo, migraciones Drizzle y repositorios base               |
+| 4    | Auth con sesiones, RBAC y CRUD de eventos/establecimientos                 |
+| 5    | Registro publico, QR, turnos, check-in y gestion de cupos                  |
+| 6    | Endurecimiento: rate limiting, observabilidad, despliegue y runbook        |
+
+---
+
+## 11. Decisiones registradas
+
+| #  | Decision                                       | Razon                                                          |
+| -- | ---------------------------------------------- | -------------------------------------------------------------- |
+| 1  | Plan Workers Paid en produccion                | PBKDF2 excede los 10 ms de CPU del plan gratuito.               |
+| 2  | PBKDF2-SHA256 via WebCrypto                    | Disponible en el runtime, sin dependencias nativas.             |
+| 3  | Token de sesion opaco en cookie `HttpOnly`     | Reduce el impacto de XSS y permite revocacion inmediata en D1.  |
+| 4  | Redistribucion de cupos con aprobacion         | Un cambio de capacidad no debe afectar registros confirmados sin control humano. |
+| 5  | `EmailSender` no-op + `qr_deliveries`           | Desacopla el dominio del proveedor de correo.                   |
+| 6  | QR como SVG generado por el backend            | Sin binarios almacenados; revocacion y versionado triviales.     |
+| 7  | Un QR por registro (solo titular)              | Simplifica la operacion en puerta y la politica de cupos.        |
+| 8  | Documento unico por (evento, establecimiento)  | La misma persona puede asistir a varios establecimientos.        |
+| 9  | UTC en almacenamiento, `America/Bogota` en UI  | Elimina ambiguedades de zona horaria.                            |
+| 10 | Conventional Commits + npm                     | Historial legible y automatizable.                               |

@@ -3,12 +3,35 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "lib": ["ESNext"],
+
+    /* --- Tipado estricto --- */
     "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+
+    /* --- Resolucion de modulos --- */
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "lib": [
-      "ESNext"
-    ],
+    "noEmit": true,
+
+    /* --- JSX de Hono (disponible por si se sirven vistas HTML) --- */
     "jsx": "react-jsx",
-    "jsxImportSource": "hono/jsx"
+    "jsxImportSource": "hono/jsx",
+
+    /* Los tipos del runtime y de los bindings los aporta `npm run cf-typegen`
+       (worker-configuration.d.ts). La lista vacia evita que se auto-incluyan
+       paquetes @types ajenos que chocarian con los globales de workerd. */
+    "types": []
   },
+  "include": ["src/**/*.ts", "worker-configuration.d.ts"],
+  "exclude": ["node_modules", "dist", "tests", ".wrangler"]
 }
