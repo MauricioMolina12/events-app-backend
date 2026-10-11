@@ -1,4 +1,4 @@
-import { AUTH_DEFAULTS } from '../../config/constants';
+import { AUTH_DEFAULTS, PBKDF2_MAX_ITERATIONS } from '../../config/constants';
 import {
   base64ToBytes,
   bytesToBase64,
@@ -42,10 +42,14 @@ export async function hashPassword(
   password: string,
   options: HashPasswordOptions = {},
 ): Promise<PasswordDigest> {
-  const iterations = Math.max(
-    options.iterations ?? AUTH_DEFAULTS.pbkdf2Iterations,
-    MIN_PBKDF2_ITERATIONS,
-  );
+  const requestedIterations = options.iterations ?? AUTH_DEFAULTS.pbkdf2Iterations;
+  if (!Number.isInteger(requestedIterations) || requestedIterations > PBKDF2_MAX_ITERATIONS) {
+    throw new RangeError(
+      `PBKDF2 iteration counts must not exceed ${PBKDF2_MAX_ITERATIONS} in Cloudflare Workers.`,
+    );
+  }
+
+  const iterations = Math.max(requestedIterations, MIN_PBKDF2_ITERATIONS);
   const salt = options.salt ?? randomBytes(SALT_BYTES);
   const derived = await deriveBits(password, salt, iterations);
 

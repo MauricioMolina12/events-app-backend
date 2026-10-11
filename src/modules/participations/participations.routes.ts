@@ -5,7 +5,9 @@ import type { AppEnv } from '../../core/types/context';
 import { createDb } from '../../db/client';
 import { fromIsoString } from '../../db/helpers';
 import { PARTICIPATION_STATUSES } from '../../db/schema';
-import { requireAuth, requireRole } from '../auth/auth.middleware';
+import { currentAuthUser, requireAuth, requireRole } from '../auth/auth.middleware';
+import { assertCanManageEvent } from '../events/event-access';
+import { getEventById } from '../events/events.service';
 import { participationSchema, toParticipation } from './participations.schemas';
 import {
   PARTICIPATION_LIST_DEFAULT_LIMIT,
@@ -20,8 +22,8 @@ import {
  * Rutas del catalogo de participaciones (una sede dentro de un evento).
  *
  * Es el catalogo donde se dimensiona cada sede: los cupos y las ventanas propias
- * viven aqui, no en el evento. La lectura la comparten `admin` y `operator`; la
- * escritura es exclusiva del `admin`.
+ * viven aqui, no en el evento. La lectura la comparten `admin` y `operator`. La
+ * escritura: el dueno del evento (u un administrador) reparte cupos por sede.
  */
 
 /** Fecha ISO-8601 en UTC; `null` limpia el campo. */
@@ -152,7 +154,7 @@ const createParticipationRoute = createRoute({
   method: 'post',
   path: '/participations',
   tags: ['Participaciones'],
-  middleware: [requireAuth, requireRole('admin')],
+  middleware: [requireAuth, requireRole('admin', 'operator')],
   summary: 'Agrega una sede a un evento',
   description: [
     'Crea la participacion con sus cupos iniciales. Aqui el cupo se fija sin',
@@ -160,8 +162,9 @@ const createParticipationRoute = createRoute({
     '',
     'Responde 404 con `EVENT_NOT_FOUND` o `ESTABLISHMENT_NOT_FOUND`; 409 con',
     '`PARTICIPATION_ALREADY_EXISTS` si la sede ya participa en el evento, con',
-    '`EVENT_NOT_REGISTRABLE` si el evento esta cerrado o archivado, y 422 si la sede',
-    'esta inactiva o una ventana quedo invertida.',
+    '`EVENT_NOT_REGISTRABLE` si el evento esta cerrado o archivado, con',
+    '`EVENT_CAPACITY_EXCEEDED` si titulares + acompanantes rebasan el cupo general,',
+    'y 422 si la sede esta inactiva o una ventana quedo invertida.',
   ].join('\n'),
   request: {
     body: {
@@ -175,10 +178,12 @@ const createParticipationRoute = createRoute({
       content: { 'application/json': { schema: participationResponseSchema } },
     },
     401: errorResponse('Sin sesion activa.'),
-    403: errorResponse('La cuenta autenticada no es administradora.'),
+    403: errorResponse(
+      'La cuenta no es administradora o el operador no es dueno de este evento.',
+    ),
     404: errorResponse('El evento o el establecimiento no existen.'),
     409: errorResponse(
-      'La sede ya participa (`PARTICIPATION_ALREADY_EXISTS`) o el evento no admite nuevas sedes (`EVENT_NOT_REGISTRABLE`).',
+      'La sede ya participa (`PARTICIPATION_ALREADY_EXISTS`), el evento no admite nuevas sedes (`EVENT_NOT_REGISTRABLE`) o el cupo de las sedes supera el cupo general (`EVENT_CAPACITY_EXCEEDED`).',
     ),
     422: errorResponse('El cuerpo no cumple el formato o la coherencia esperada.'),
   },
@@ -186,7 +191,9 @@ const createParticipationRoute = createRoute({
 
 const createParticipationHandler: RouteHandler<typeof createParticipationRoute, AppEnv> = async (c) => {
   const body = c.req.valid('json');
-  const view = await createParticipation(createDb(c.env), {
+  const db = createDb(c.env);
+  assertCanManageEvent(currentAuthUser(c), await getEventById(db, body.eventId));
+  const view = await createParticipation(db, {
     eventId: body.eventId,
     establishmentId: body.establishmentId,
     titularCapacity: body.titularCapacity,
@@ -221,7 +228,7 @@ const updateParticipationRoute = createRoute({
   method: 'patch',
   path: '/participations/{id}',
   tags: ['Participaciones'],
-  middleware: [requireAuth, requireRole('admin')],
+  middleware: [requireAuth, requireRole('admin', 'operator')],
   summary: 'Actualiza una participacion',
   description: [
     'Modifica estado, cupos, ventanas o notas; los campos ausentes se mantienen y',
@@ -246,7 +253,9 @@ const updateParticipationRoute = createRoute({
       content: { 'application/json': { schema: participationResponseSchema } },
     },
     401: errorResponse('Sin sesion activa.'),
-    403: errorResponse('La cuenta autenticada no es administradora.'),
+    403: errorResponse(
+      'La cuenta no es administradora o el operador no es dueno de este evento.',
+    ),
     404: errorResponse('La participacion no existe (`PARTICIPATION_NOT_FOUND`).'),
     409: errorResponse(
       'Cupo con registros confirmados (`CAPACITY_ADJUSTMENT_REQUIRED`), cancelacion con registros (`PARTICIPATION_HAS_REGISTRATIONS`) o transicion no permitida (`STATUS_TRANSITION_INVALID`).',
@@ -257,7 +266,13 @@ const updateParticipationRoute = createRoute({
 
 const updateParticipationHandler: RouteHandler<typeof updateParticipationRoute, AppEnv> = async (c) => {
   const body = c.req.valid('json');
-  const view = await updateParticipation(createDb(c.env), c.req.valid('param').id, {
+  const db = createDb(c.env);
+  const existing = await getParticipationDetail(db, c.req.valid('param').id);
+  assertCanManageEvent(
+    currentAuthUser(c),
+    await getEventById(db, existing.participation.eventId),
+  );
+  const view = await updateParticipation(db, existing.participation.id, {
     eventId: body.eventId,
     establishmentId: body.establishmentId,
     status: body.status,

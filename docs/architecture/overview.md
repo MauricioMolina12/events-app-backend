@@ -322,7 +322,10 @@ una opcion.
   del ultimo administrador y revocacion de sesiones al desactivar o rotar la contrasena.
   El catalogo (eventos, sedes y participaciones) tambien: matriz de autorizacion, formato
   de los identificadores, ciclo de vida de los estados, cupo disponible y protecciones
-  sobre los registros confirmados.
+  sobre los registros confirmados. Desde la Fase 5 se suman el alta y la cancelacion de
+  registros (reserva de cupo, documento duplicado, ventana efectiva, motivo obligatorio)
+  y el catalogo y el alta publicos, incluida la coherencia entre `registrationOpen` y la
+  ventana que aplica el alta.
 - Las migraciones de `migrations/` se aplican con `applyD1Migrations` en
   `tests/setup/`, que recibe el SQL por el binding `TEST_MIGRATIONS` porque workerd
   no puede leer el sistema de archivos. `tests/helpers/database.ts` centraliza la
@@ -345,7 +348,7 @@ una opcion.
 | 2    | Fundamentos: config, middleware, errores, health, OpenAPI, tests (completada) |
 | 3    | Esquema D1 completo, migraciones Drizzle y repositorios base (completada)  |
 | 4    | Auth con sesiones, RBAC, usuarios y CRUD de eventos/establecimientos (auth, RBAC, usuarios y catalogo listos; falta el bootstrap del primer admin) |
-| 5    | Registro publico, QR, turnos, check-in y gestion de cupos                  |
+| 5    | Registro publico y catalogo listos; faltan QR, turnos y check-in           |
 | 6    | Endurecimiento: rate limiting, observabilidad, despliegue y runbook        |
 
 ---
@@ -380,3 +383,7 @@ una opcion.
 | 24 | `slug` y `code` inmutables                      | Son identificadores publicos y operativos que ya pueden estar impresos o compartidos: cambiarlos rompe enlaces, planillas y reportes. |
 | 25 | Sin `DELETE` en el catalogo                     | Un evento se archiva y una sede se desactiva; el `ON DELETE restrict` de las participaciones impide perder la trazabilidad de registros y accesos. |
 | 26 | Cupo editable solo sin registros confirmados    | Sin registros confirmados el cupo es configuracion; con ellos, el cambio responde `CAPACITY_ADJUSTMENT_REQUIRED` para forzar el flujo de aprobacion de la decision #4. |
+| 27 | Catalogo publico solo de eventos `published`    | Un evento en borrador o archivado no debe existir para el publico: la ficha responde 404 `EVENT_NOT_FOUND`, sin revelar el estado interno ni exigir sesion. |
+| 28 | Reserva de cupo antes de escribir el registro   | Un `UPDATE` condicional (`confirmed < capacity`) deja la exclusividad al motor y evita la sobreventa con altas simultaneas; si la escritura falla, el cupo se devuelve como compensacion. |
+| 29 | Ventana efectiva: la sede sustituye al evento   | Cada sede conoce su horario real; cuando no define un extremo hereda el del evento, de modo que la ventana se configura donde se necesita y el catalogo y el alta evaluan la misma. |
+

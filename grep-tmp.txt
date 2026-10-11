@@ -1,0 +1,19 @@
+﻿README.md:128: 13 tablas definidas en `src/db/schema/` (un archivo por grupo) y materializadas en
+README.md:144: - Un documento es unico por **participacion** (evento + sede), no por evento: la
+README.md:156: `AppError` con codigo de negocio (`DUPLICATE_REGISTRATION`,
+README.md:181: schema/                 # esquema Drizzle: 13 tablas, un archivo por grupo
+README.md:316: registros vigentes (`DUPLICATE_REGISTRATION`); la cancelacion lo libera, asi que la
+README.md:349: (documento unico por sede, 409 con `DUPLICATE_REGISTRATION`, cupos con
+overview.md:62: - `schema/`: esquema de las 13 tablas, un archivo por grupo.
+overview.md:97: "error": { "code": "DUPLICATE_REGISTRATION", "message": "..." },
+overview.md:124: documento unico por evento + establecimiento).
+overview.md:129: 13 tablas, definidas en `src/db/schema/` (un archivo por grupo) y materializadas en
+overview.md:136: | Registro  | `registrations`, `registration_companions`                 | Un documento es unico por participacion, no por evento.            |
+overview.md:167: (`DUPLICATE_REGISTRATION`, `PARTICIPATION_ALREADY_EXISTS`,
+angular-pwa-prompt.md:248: | `DUPLICATE_REGISTRATION` | 409 | "Ese documento ya esta inscrito en esta sede" + enlace a la ficha |
+angular-pwa-prompt.md:324: `DUPLICATE_REGISTRATION`, `TITULAR_CAPACITY_EXCEEDED`, `COMPANION_CAPACITY_EXCEEDED`,
+angular-pwa-prompt.md:500: 4. **Documento unico por sede, no por evento.** La misma persona puede inscribirse en
+angular-pwa-prompt.md:544: export type ErrorCode = 'VALIDATION_ERROR' | 'EVENT_NOT_FOUND' | 'DUPLICATE_REGISTRATION' | /* ... */ string;
+angular-pwa-prompt.md:691: - **`/panel/participaciones`** — filtro por evento (obligatorio por defecto: es donde se
+angular-pwa-prompt.md:838: | e2e | Playwright | Flujo publico completo (listado → ficha → alta → comprobante), login, alta manual, busqueda, cancelacion, y el `409 DUPLICATE_REGISTRATION` visible |
+angular-pwa-prompt.md:898: - [ ] `DUPLICATE_REGISTRATION`, `TITULAR_CAPACITY_EXCEEDED`, `COMPANION_CAPACITY_EXCEEDED`, `PARTICIPATION_CLOSED`, `EVENT_NOT_REGISTRABLE` y `REGISTRATION_OUTSIDE_WINDOW` muestran mensajes distintos, en `es-CO`, con la accion siguiente.

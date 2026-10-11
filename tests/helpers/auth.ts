@@ -45,6 +45,15 @@ export function loginRequest(email: string, password: string): Promise<Response>
   });
 }
 
+/** `POST /auth/signup` contra la aplicacion real. */
+export function signupRequest(email: string, fullName: string, password: string): Promise<Response> {
+  return SELF.fetch('https://example.com/api/v1/auth/signup', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email, fullName, password }),
+  });
+}
+
 /** Par `nombre=valor` de la cookie de sesion que devolvio el login. */
 export function sessionCookieOf(response: Response): string {
   const header = response.headers.get('set-cookie') ?? '';

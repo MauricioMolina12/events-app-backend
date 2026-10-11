@@ -21,6 +21,9 @@ export const OPENAPI_DESCRIPTION = [
   '- Las fechas se expresan en ISO-8601 UTC.',
 ].join('\n');
 
+/** Cloudflare Workers WebCrypto rejects PBKDF2 iteration counts above 100,000. */
+export const PBKDF2_MAX_ITERATIONS = 100_000;
+
 /**
  * Valores por defecto de la configuracion de autenticacion.
  *
@@ -29,8 +32,8 @@ export const OPENAPI_DESCRIPTION = [
  * el coste de derivacion no se duplique en cada archivo.
  */
 export const AUTH_DEFAULTS = {
-  /** PBKDF2-SHA256: por debajo de 210 000 el coste deja de ser disuasorio. */
-  pbkdf2Iterations: 210_000,
+  /** PBKDF2-SHA256: limite soportado por WebCrypto en Cloudflare Workers. */
+  pbkdf2Iterations: PBKDF2_MAX_ITERATIONS,
   /** Duracion de una sesion; se renueva volviendo a iniciar sesion. */
   sessionTtlHours: 12,
   /** Nombre de la cookie que transporta el token opaco. */

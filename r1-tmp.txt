@@ -1,0 +1,81 @@
+﻿      content: { 'application/json': { schema: registrationListResponseSchema } },
+    },
+    401: errorResponse('Sin sesion activa.'),
+    403: errorResponse('La cuenta autenticada no es `admin` ni `operator`.'),
+  },
+});
+
+const listRegistrationsHandler: RouteHandler<typeof listRegistrationsRoute, AppEnv> = async (c) => {
+  const page = await listRegistrationCatalog(createDb(c.env), c.req.valid('query'));
+
+  return c.json(
+    apiSuccess(page.items.map(toRegistration), {
+      total: page.total,
+      limit: page.limit,
+      offset: page.offset,
+    }),
+    200,
+  );
+};
+
+const getRegistrationRoute = createRoute({
+  method: 'get',
+  path: '/registrations/{id}',
+  tags: ['Registros'],
+  middleware: [requireAuth, requireRole('admin', 'operator')],
+  summary: 'Consulta un registro',
+  description: [
+    'Devuelve el registro con sus acompanantes y el cupo que consume',
+    '(`companionsCount`). Responde 404 con `REGISTRATION_NOT_FOUND`.',
+  ].join('\n'),
+  request: { params: registrationIdParamSchema },
+  responses: {
+    200: {
+      description: 'Registro encontrado.',
+      content: { 'application/json': { schema: registrationDetailResponseSchema } },
+    },
+    401: errorResponse('Sin sesion activa.'),
+    403: errorResponse('La cuenta autenticada no es `admin` ni `operator`.'),
+    404: errorResponse('El registro no existe (`REGISTRATION_NOT_FOUND`).'),
+  },
+});
+
+const getRegistrationHandler: RouteHandler<typeof getRegistrationRoute, AppEnv> = async (c) => {
+  const detail = await getRegistrationDetail(createDb(c.env), c.req.valid('param').id);
+
+  return c.json(
+    apiSuccess({
+      ...toRegistration(detail.registration),
+      companions: detail.companions.map(toRegistrationCompanion),
+    }),
+    200,
+  );
+};
+
+const createRegistrationRoute = createRoute({
+  method: 'post',
+  path: '/registrations',
+  tags: ['Registros'],
+  middleware: [requireAuth, requireRole('admin', 'operator')],
+  summary: 'Registra a una persona desde el panel',
+  description: [
+    'Alta manual: la mesa de registro atiende a quien llega sin formulario. El',
+    'registro queda marcado con `source: admin`.',
+    '',
+    'El cupo de la sede se reserva antes de escribir. Si la sede cerro entre la',
+    'consulta y la reserva, o el cupo esta completo, responde 409 con',
+    '`TITULAR_CAPACITY_EXCEEDED` o `COMPANION_CAPACITY_EXCEEDED`; si el documento ya',
+    'esta registrado en esa sede, 409 con `DUPLICATE_REGISTRATION` (el documento se',
+    'normaliza: `1.020.304.000` y `1020304000` son el mismo).',
+  ].join('\n'),
+  request: {
+    body: {
+      required: true,
+      content: { 'application/json': { schema: createRegistrationRequestSchema } },
+    },
+  },
+  responses: {
+    201: {
+      description: 'Registro creado.',
+      content: { 'application/json': { schema: registrationDetailResponseSchema } },
+    },

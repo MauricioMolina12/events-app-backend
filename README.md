@@ -196,6 +196,8 @@ tests/
   integration/              # pruebas de la app completa en workerd
 docs/
   architecture/overview.md  # arquitectura, decisiones y roadmap
+  frontend/angular-pwa-prompt.md  # brief del frontend Angular + PWA
+  comercial/cotizacion-frontend-angular-pwa.md  # propuesta comercial de precio fijo (COP 650.000)
 ```
 
 Cada modulo de negocio sigue el patron `*.routes.ts` -> `*.service.ts` ->
@@ -291,10 +293,66 @@ curl -i -X POST http://localhost:8787/api/v1/auth/login \
   `establishmentId` de una participacion.
 - **Sin borrado fisico**: un evento se archiva y una sede se desactiva (`inactive`);
   participaciones, registros y accesos historicos los siguen referenciando.
-- El catalogo publico (solo eventos `published`, con la disponibilidad de cupos) llega
-  con el registro publico de la Fase 5.
+- El catalogo publico (solo eventos `published`, con la disponibilidad de cupos) y el
+  alta publica viven en `/api/v1/public/*`: ver "Catalogo publico y registro".
+
+### Registros (mesa de registro)
+
+| Metodo | Ruta                                | Acceso              | Descripcion                                            |
+| ------ | ----------------------------------- | ------------------- | ------------------------------------------------------ |
+| GET    | `/api/v1/registrations`             | `admin`, `operator` | Registros con filtros por sede, estado y texto libre.   |
+| GET    | `/api/v1/registrations/{id}`        | `admin`, `operator` | Registro con sus acompanantes y el cupo que consume.    |
+| POST   | `/api/v1/registrations`             | `admin`, `operator` | Alta manual: reserva cupo y normaliza el documento.     |
+| POST   | `/api/v1/registrations/{id}/cancel` | `admin`, `operator` | Cancela con motivo, libera cupo y revoca el QR activo.  |
+
+- **Precondiciones**: el evento debe estar `published` (`EVENT_NOT_REGISTRABLE`), la
+  participacion `open` y su establecimiento `active` (`PARTICIPATION_CLOSED`). Fuera de
+  la ventana efectiva el alta responde 409 con `REGISTRATION_OUTSIDE_WINDOW`.
+- **Cupo**: se reserva con un `UPDATE` condicional **antes** de escribir el registro y,
+  si la escritura falla, se devuelve (compensacion). Dos altas por el ultimo lugar
+  conceden una sola y la otra responde `TITULAR_CAPACITY_EXCEEDED` o
+  `COMPANION_CAPACITY_EXCEEDED`.
+- **Documento**: se normaliza (sin puntos ni espacios) y es unico por sede entre los
+  registros vigentes (`DUPLICATE_REGISTRATION`); la cancelacion lo libera, asi que la
+  misma persona puede volver a inscribirse.
+- **Cancelacion**: exige motivo (422 sin el), un registro ya cancelado responde 409 con
+  `REGISTRATION_ALREADY_CANCELLED` y el cupo del titular y de sus acompanantes se
+  devuelve en la misma operacion.
+- El listado es cronologico inverso (`registeredAt` descendente, `id` como desempate) y
+  **incluye** los cancelados: para ver un solo estado hay que pedir `status`.
 
 ---
+
+## Catalogo publico y registro
+
+El catalogo publico no pide sesion y solo expone eventos `published`; la inscripcion
+tampoco pide sesion y escribe el registro con `source: public`.
+
+| Metodo | Ruta                           | Acceso  | Descripcion                                              |
+| ------ | ------------------------------ | ------- | -------------------------------------------------------- |
+| GET    | `/api/v1/public/events`        | Publico | Eventos publicados con la disponibilidad de sus sedes.    |
+| GET    | `/api/v1/public/events/{slug}` | Publico | Ficha publica (acepta el `slug` o el identificador).      |
+| POST   | `/api/v1/public/registrations` | Publico | Inscribe a una persona y a sus acompanantes.              |
+
+- **Catalogo**: solo eventos `published`, con filtros por texto y paginacion. Un evento
+  en `draft`, `closed` o `archived` responde 404 con `EVENT_NOT_FOUND`, igual que uno
+  inexistente: el estado interno del evento no se filtra al publico.
+- **Disponibilidad por sede**: cada sede participante expone su cupo disponible y su
+  ventana efectiva (la de la sede sustituye la del evento, que se hereda cuando la sede
+  no define la suya). Las sedes cerradas, canceladas o con el establecimiento inactivo
+  no se ofrecen.
+- **`registrationOpen`**: `false` si la sede no esta `open`, su establecimiento no esta
+  `active` o la fecha cae fuera de la ventana efectiva. El catalogo evalua lo mismo que
+  el alta, de modo que no puede anunciar "abierto" y luego responder
+  `REGISTRATION_OUTSIDE_WINDOW`.
+- **Alta publica**: comparte precondiciones y reserva de cupo con el alta del panel
+  (documento unico por sede, 409 con `DUPLICATE_REGISTRATION`, cupos con
+  `TITULAR_CAPACITY_EXCEEDED`/`COMPANION_CAPACITY_EXCEEDED`).
+- **Sin datos de terceros**: el catalogo nunca devuelve registros ni documentos; la
+  consulta de registros es exclusiva de `admin` y `operator`.
+
+---
+
 
 ## Convenciones de la API
 
@@ -325,8 +383,15 @@ curl -i -X POST http://localhost:8787/api/v1/auth/login \
 | 1    | Analisis y decisiones de arquitectura                     | Completada |
 | 2    | Fundamentos: scaffold, config, middleware, health, tests  | Completada |
 | 3    | Modelo de datos D1, migraciones Drizzle y repositorios base | Completada |
-| 4    | Auth (sesiones, PBKDF2), RBAC, usuarios y CRUD de eventos           | En curso   |
-| 5    | Registro publico, codigos QR, turnos y check-in           | Pendiente  |
+| 4    | Auth (sesiones PBKDF2), RBAC, usuarios y CRUD de eventos   | En curso   |
+| 5    | Registro publico, QR, turnos, check-in y gestion de cupos | En curso   |
 | 6    | Endurecimiento: rate limiting, observabilidad, despliegue | Pendiente  |
+
+- Fase 5 en curso: el registro de participantes (panel y formulario publico), el catalogo
+  publico y la cancelacion ya estan entregados; los codigos QR, los turnos y el check-in
+  siguen pendientes.
+- Frontend (Angular + PWA): el brief completo para su construccion esta en
+  [`docs/frontend/angular-pwa-prompt.md`](docs/frontend/angular-pwa-prompt.md). Aun no
+  tiene implementacion.
 
 Decisiones y justificaciones: [`docs/architecture/overview.md`](docs/architecture/overview.md).

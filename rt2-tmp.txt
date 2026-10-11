@@ -1,0 +1,182 @@
+﻿
+  it('responde 404 si la sede no existe', async () => {
+    const admin = await seedAdmin();
+
+    const response = await postRegistration(admin.cookie, registrationBody(UNKNOWN_ID));
+
+    expect(response.status).toBe(404);
+    await expect(errorCodeOf(response)).resolves.toBe('PARTICIPATION_NOT_FOUND');
+  });
+});
+
+describe('precondiciones del alta', () => {
+  it('rechaza el alta si el evento no esta publicado', async () => {
+    const admin = await seedAdmin();
+
+    for (const status of ['draft', 'closed', 'archived'] as const) {
+      const { participation } = await seedCatalog({
+        event: { slug: `evento-${status}`, status },
+        establishment: { code: `sede-${status}` },
+      });
+
+      const response = await postRegistration(admin.cookie, registrationBody(participation.id));
+
+      expect(response.status).toBe(409);
+      await expect(errorCodeOf(response)).resolves.toBe('EVENT_NOT_REGISTRABLE');
+    }
+  });
+
+  it('rechaza el alta si la sede cerro o su establecimiento esta inactivo', async () => {
+    const admin = await seedAdmin();
+    const closed = await seedCatalog({ participation: { status: 'closed' } });
+
+    const closedResponse = await postRegistration(
+      admin.cookie,
+      registrationBody(closed.participation.id),
+    );
+
+    expect(closedResponse.status).toBe(409);
+    await expect(errorCodeOf(closedResponse)).resolves.toBe('PARTICIPATION_CLOSED');
+
+    const inactive = await seedCatalog({
+      event: { slug: 'evento-2' },
+      establishment: { code: 'sur', status: 'inactive' },
+    });
+
+    const inactiveResponse = await postRegistration(
+      admin.cookie,
+      registrationBody(inactive.participation.id),
+    );
+
+    expect(inactiveResponse.status).toBe(409);
+    await expect(errorCodeOf(inactiveResponse)).resolves.toBe('PARTICIPATION_CLOSED');
+  });
+
+  it('rechaza el alta fuera de la ventana y respeta la que define la sede', async () => {
+    const admin = await seedAdmin();
+    const { event, participation } = await seedCatalog({
+      event: { registrationClosesAt: CLOSED_BEFORE },
+    });
+
+    const outside = await postRegistration(admin.cookie, registrationBody(participation.id));
+
+    expect(outside.status).toBe(409);
+    await expect(errorCodeOf(outside)).resolves.toBe('REGISTRATION_OUTSIDE_WINDOW');
+
+    // La sede manda: una segunda sede con ventana propia admite el alta aunque el
+    // evento ya haya cerrado la suya.
+    const other = await establishments.insertEstablishment(
+      db,
+      { code: 'sur', name: 'Sede Sur', city: 'Medellin' },
+      NOW,
+    );
+
+    const withOwnWindow = await participations.insertParticipation(
+      db,
+      {
+        eventId: event.id,
+        establishmentId: other.id,
+        titularCapacity: 5,
+        companionCapacity: 5,
+        registrationOpensAt: OPEN_FROM,
+        registrationClosesAt: OPEN_TO,
+      },
+      NOW,
+    );
+
+    const open = await postRegistration(admin.cookie, registrationBody(withOwnWindow.id));
+    expect(open.status).toBe(201);
+  });
+
+  it('rechaza un cuerpo incoherente antes de tocar la sede', async () => {
+    const admin = await seedAdmin();
+    const { participation } = await seedCatalog();
+
+    const response = await postRegistration(
+      admin.cookie,
+      registrationBody(participation.id, {
+        companions: [{ fullName: 'Luis Perez', documentNumber: '99001' }],
+      }),
+    );
+
+    expect(response.status).toBe(422);
+    await expect(errorCodeOf(response)).resolves.toBe('VALIDATION_ERROR');
+  });
+});
+
+describe('consulta y listado de registros', () => {
+  it('lista los registros y filtra por sede, texto libre y estado', async () => {
+    const admin = await seedAdmin();
+    const first = await seedCatalog();
+    const second = await seedCatalog({ event: { slug: 'evento-2' }, establishment: { code: 'sur' } });
+
+    await readRegistration(
+      admin.cookie,
+      registrationBody(first.participation.id, { documentNumber: '10203040', fullName: 'Ana Perez' }),
+    );
+    await readRegistration(
+      admin.cookie,
+      registrationBody(first.participation.id, { documentNumber: '99887766', fullName: 'Luis Gomez' }),
+    );
+    await readRegistration(
+      admin.cookie,
+      registrationBody(second.participation.id, { documentNumber: '55443322', fullName: 'Ana Torres' }),
+    );
+
+    const byParticipation = await api(
+      `/registrations?participationId=${first.participation.id}`,
+      admin.cookie,
+    );
+    expect(byParticipation.status).toBe(200);
+    const page = await byParticipation.json<RegistrationListResponse>();
+    expect(page.meta.total).toBe(2);
+    expect(page.data.map((row) => row.fullName).sort()).toEqual(['Ana Perez', 'Luis Gomez']);
+    expect(page.data.every((row) => row.participationId === first.participation.id)).toBe(true);
+
+    const byName = await api('/registrations?search=perez', admin.cookie);
+    expect((await byName.json<RegistrationListResponse>()).meta.total).toBe(1);
+
+    // El documento se busca normalizado, sin puntos ni guiones.
+    const byDocument = await api('/registrations?search=99887766', admin.cookie);
+    const documentPage = await byDocument.json<RegistrationListResponse>();
+    expect(documentPage.meta.total).toBe(1);
+    expect(documentPage.data[0].fullName).toBe('Luis Gomez');
+
+    const byStatus = await api('/registrations?status=cancelled', admin.cookie);
+    expect((await byStatus.json<RegistrationListResponse>()).meta.total).toBe(0);
+  });
+
+  it('acota la pagina con limit y offset', async () => {
+    const admin = await seedAdmin();
+    const { participation } = await seedCatalog();
+
+    await readRegistration(admin.cookie, registrationBody(participation.id));
+    await readRegistration(
+      admin.cookie,
+      registrationBody(participation.id, { documentNumber: '99887766', fullName: 'Luis Gomez' }),
+    );
+
+    // El listado es cronologico inverso: el ultimo alta encabeza la primera pagina.
+    const newest = await api('/registrations?limit=1&offset=0', admin.cookie);
+    const newestPage = await newest.json<RegistrationListResponse>();
+    expect(newestPage.meta).toEqual({ total: 2, limit: 1, offset: 0 });
+    expect(newestPage.data[0].fullName).toBe('Luis Gomez');
+
+    const response = await api('/registrations?limit=1&offset=1', admin.cookie);
+    expect(response.status).toBe(200);
+    const page = await response.json<RegistrationListResponse>();
+
+    expect(page.meta).toEqual({ total: 2, limit: 1, offset: 1 });
+    expect(page.data).toHaveLength(1);
+    expect(page.data[0].fullName).toBe('Ana Perez');
+  });
+
+  it('devuelve el registro con sus acompanantes y 404 si no existe', async () => {
+    const admin = await seedAdmin();
+    const { participation } = await seedCatalog();
+
+    const created = await readRegistration(
+      admin.cookie,
+      registrationBody(participation.id, {
+        companions: [{ fullName: 'Sofia Perez' }],
+      }),

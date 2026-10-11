@@ -92,6 +92,27 @@ export const UNIQUE_INVARIANTS: readonly UniqueInvariant[] = [
       ),
   },
   {
+    /**
+     * Regla de negocio: **un documento por evento**, sea titular o acompanante.
+     * El mensaje es un respaldo: el servicio lo reemplaza por el especifico de
+     * `registeredAs` y anade el documento, los roles y el campo implicado
+     * (ver `duplicateDocumentError` en `registrations.service`).
+     */
+    index: 'registration_documents_event_document_unique',
+    columns: [
+      'registration_documents.event_id',
+      'registration_documents.document_type',
+      'registration_documents.document_number',
+    ],
+    error: () =>
+      AppError.conflict(
+        ErrorCode.DUPLICATE_DOCUMENT,
+        'El documento ingresado ya se encuentra registrado en este evento.',
+      ),
+  },
+  {
+    // Red de seguridad por sede: mas debil que la regla del evento, asi que
+    // responde el mismo codigo para que el cliente tenga un unico camino.
     index: 'registrations_participation_document_unique',
     columns: [
       'registrations.participation_id',
@@ -100,8 +121,8 @@ export const UNIQUE_INVARIANTS: readonly UniqueInvariant[] = [
     ],
     error: () =>
       AppError.conflict(
-        ErrorCode.DUPLICATE_REGISTRATION,
-        'Ya existe un registro con ese documento en este establecimiento.',
+        ErrorCode.DUPLICATE_DOCUMENT,
+        'El documento ingresado ya se encuentra registrado en este evento.',
       ),
   },
   {
@@ -130,6 +151,24 @@ export const UNIQUE_INVARIANTS: readonly UniqueInvariant[] = [
       AppError.conflict(
         ErrorCode.CHECK_IN_ALREADY_ASSIGNED,
         'El registro ya tiene un turno asignado.',
+      ),
+  },
+  {
+    // Dos escaneos del mismo QR a la vez: el servicio lo captura y devuelve los
+    // turnos que gano el primero.
+    index: 'turns_registration_position_unique',
+    columns: ['turns.registration_id', 'turns.position'],
+    error: () =>
+      AppError.conflict(ErrorCode.CHECK_IN_ALREADY_ASSIGNED, 'El registro ya tiene turnos asignados.'),
+  },
+  {
+    // No deberia ocurrir: el contador entrega rangos disjuntos. Es la red de seguridad.
+    index: 'turns_participation_number_unique',
+    columns: ['turns.participation_id', 'turns.number'],
+    error: () =>
+      AppError.conflict(
+        ErrorCode.TURN_ASSIGNMENT_CONFLICT,
+        'No se pudo asignar el turno. Vuelve a escanear el codigo.',
       ),
   },
   {

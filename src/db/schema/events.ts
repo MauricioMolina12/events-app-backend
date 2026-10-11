@@ -36,6 +36,8 @@ export const events = sqliteTable(
     endsAt: timestampColumn('ends_at'),
     registrationOpensAt: timestampColumn('registration_opens_at'),
     registrationClosesAt: timestampColumn('registration_closes_at'),
+    /** Cupo general: techo de personas (titulares + acompanantes) entre las sedes. */
+    capacity: integer('capacity').notNull().default(0),
     status: text('status', { enum: EVENT_STATUSES }).notNull().default('draft'),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: createdAtColumn(),
@@ -48,6 +50,7 @@ export const events = sqliteTable(
       'events_window_check',
       sql`${table.registrationOpensAt} IS NULL OR ${table.registrationClosesAt} IS NULL OR ${table.registrationOpensAt} <= ${table.registrationClosesAt}`,
     ),
+    check('events_capacity_check', sql`${table.capacity} >= 0`),
   ],
 );
 

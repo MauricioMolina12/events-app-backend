@@ -1,63 +1,75 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-
-  "name": "events",
-  "main": "src/index.ts",
-  "compatibility_date": "2026-10-03",
-
-  // Workers Logs. Los middlewares emiten JSON estructurado (ver src/core/middleware).
-  "observability": {
-    "enabled": true,
-    "head_sampling_rate": 1
-  },
-
-  // Variables NO sensibles del entorno por defecto (desarrollo local).
-  // Los secretos se gestionan con `wrangler secret put` (remoto) o `.dev.vars` (local).
-  "vars": {
-    "ENVIRONMENT": "local",
-    "CORS_ORIGINS": "http://localhost:5173,http://localhost:8788",
-
-    // Autenticacion (ver src/config/env.ts para los limites admitidos).
-    "PBKDF2_ITERATIONS": "210000",
-    "SESSION_TTL_HOURS": "12",
-    "SESSION_COOKIE_NAME": "events_session",
-    "AUTH_MAX_FAILED_ATTEMPTS": "5",
-    "AUTH_LOCKOUT_MINUTES": "15"
-  },
-
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "events-db",
-      // Placeholder: sustituir por el ID real de `wrangler d1 create events-db`.
-      // En local, `wrangler dev` y `wrangler d1 migrations apply --local` funcionan con este valor.
-      "database_id": "00000000-0000-0000-0000-000000000000",
-      "migrations_dir": "migrations"
-    }
-  ],
-
-  // Entorno de produccion: `npm run deploy` (wrangler deploy --env production).
-  "env": {
-    "production": {
-      "vars": {
-        "ENVIRONMENT": "production",
-        "CORS_ORIGINS": "https://app.example.com",
-
-        // Autenticacion (ver src/config/env.ts para los limites admitidos).
-        "PBKDF2_ITERATIONS": "210000",
-        "SESSION_TTL_HOURS": "12",
-        "SESSION_COOKIE_NAME": "events_session",
-        "AUTH_MAX_FAILED_ATTEMPTS": "5",
-        "AUTH_LOCKOUT_MINUTES": "15"
-      },
-      "d1_databases": [
-        {
-          "binding": "DB",
-          "database_name": "events-db",
-          "database_id": "00000000-0000-0000-0000-000000000000",
-          "migrations_dir": "migrations"
-        }
-      ]
-    }
-  }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "events",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-10-03",
+	"workers_dev": true,
+	// Workers Logs. Los middlewares emiten JSON estructurado (ver src/core/middleware).
+	"observability": {
+		"enabled": true,
+		"head_sampling_rate": 1
+	},
+	// Variables NO sensibles del entorno por defecto (desarrollo local).
+	// Los secretos se gestionan con `wrangler secret put` (remoto) o `.dev.vars` (local).
+	"vars": {
+		"ENVIRONMENT": "local",
+		"CORS_ORIGINS": "http://localhost:5173,http://localhost:8788",
+		// Autenticacion (ver src/config/env.ts para los limites admitidos).
+		"PBKDF2_ITERATIONS": "100000",
+		"SESSION_TTL_HOURS": "12",
+		"SESSION_COOKIE_NAME": "events_session",
+		"AUTH_MAX_FAILED_ATTEMPTS": "5",
+		"AUTH_LOCKOUT_MINUTES": "15"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "events-db",
+			"database_id": "1d6834df-fa00-4fbd-aef9-3e48271977fd",
+			"migrations_dir": "migrations"
+		}
+	],
+	// Entorno de produccion: `npm run deploy` (wrangler deploy --env production).
+	"env": {
+		"development": {
+			"name": "events-development",
+			"vars": {
+				"ENVIRONMENT": "development",
+				"CORS_ORIGINS": "http://localhost:4200,http://localhost:5173,http://localhost:8788,https://grow-events-star-grow-studio.vercel.app",
+				"PBKDF2_ITERATIONS": "100000",
+				"SESSION_TTL_HOURS": "12",
+				"SESSION_COOKIE_NAME": "events_session",
+				"AUTH_MAX_FAILED_ATTEMPTS": "5",
+				"AUTH_LOCKOUT_MINUTES": "15"
+			},
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "events-db-development",
+					"database_id": "5add10fd-b9f3-43ac-b17a-9fb07b32be9f",
+					"migrations_dir": "migrations"
+				}
+			]
+		},
+		"production": {
+			"vars": {
+				"ENVIRONMENT": "production",
+				"CORS_ORIGINS": "https://app.example.com",
+				// Autenticacion (ver src/config/env.ts para los limites admitidos).
+				"PBKDF2_ITERATIONS": "100000",
+				"SESSION_TTL_HOURS": "12",
+				"SESSION_COOKIE_NAME": "events_session",
+				"AUTH_MAX_FAILED_ATTEMPTS": "5",
+				"AUTH_LOCKOUT_MINUTES": "15"
+			},
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "events-db",
+					"database_id": "1d6834df-fa00-4fbd-aef9-3e48271977fd",
+					"migrations_dir": "migrations"
+				}
+			]
+		}
+	}
 }

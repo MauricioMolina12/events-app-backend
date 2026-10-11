@@ -1,0 +1,105 @@
+﻿/** Sede activa (salvo que el caso diga otra cosa). */
+function seedEstablishment(
+  options: Partial<establishments.CreateEstablishmentInput> = {},
+): Promise<establishments.EstablishmentRow> {
+  return establishments.insertEstablishment(
+    db,
+    { code: 'norte', name: 'Sede Norte', city: 'Bogota', ...options },
+    NOW,
+  );
+}
+
+/** Sede del evento con cupos holgados; la ventana la define el evento. */
+function seedParticipation(
+  eventId: string,
+  establishmentId: string,
+  options: Partial<participations.CreateParticipationInput> = {},
+): Promise<participations.ParticipationRow> {
+  return participations.insertParticipation(
+    db,
+    { eventId, establishmentId, titularCapacity: 5, companionCapacity: 5, ...options },
+    NOW,
+  );
+}
+
+/** Cuerpo del formulario con lo minimo; el caso cambia lo que necesite. */
+function formBody(
+  participationId: string,
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    participationId,
+    documentType: 'CC',
+    documentNumber: '10203040',
+    fullName: 'Ana Perez',
+    ...overrides,
+  };
+}
+
+/** Alta publica: la ruta no pide sesion, asi que no se envia cookie. */
+function register(body: Record<string, unknown>): Promise<Response> {
+  return api('/public/registrations', '', { method: 'POST', body: JSON.stringify(body) });
+}
+
+/** Ficha publica que se espera visible. */
+async function publicEvent(reference: string): Promise<PublicEventBody> {
+  const response = await api(`/public/events/${reference}`, '');
+  expect(response.status).toBe(200);
+  return (await response.json<PublicEventResponse>()).data;
+}
+
+describe('catalogo publico de eventos', () => {
+  it('no pide sesion y solo ofrece eventos publicados', async () => {
+    await seedEvent();
+    await seedEvent({ slug: 'borrador', name: 'Borrador', status: 'draft' });
+
+    const response = await api('/public/events', '');
+
+    expect(response.status).toBe(200);
+    const page = await response.json<PublicEventListResponse>();
+    expect(page.meta.total).toBe(1);
+    expect(page.data.map((event) => event.slug)).toEqual(['feria']);
+  });
+
+  it('resuelve la ficha por slug o por identificador', async () => {
+    const event = await seedEvent();
+    const establishment = await seedEstablishment();
+    await seedParticipation(event.id, establishment.id);
+
+    const bySlug = await publicEvent('feria');
+    expect(bySlug.id).toBe(event.id);
+    expect(bySlug.name).toBe('Feria 2026');
+    expect(bySlug.participations).toHaveLength(1);
+
+    const byId = await publicEvent(event.id);
+    expect(byId.id).toBe(event.id);
+    expect(byId.participations[0].establishment).toEqual({
+      id: establishment.id,
+      name: 'Sede Norte',
+      city: 'Bogota',
+    });
+  });
+
+  it('un evento no publicado responde 404 igual que uno inexistente', async () => {
+    await seedEvent({ slug: 'borrador', name: 'Borrador', status: 'draft' });
+    await seedEvent({ slug: 'cerrado', name: 'Cerrado', status: 'closed' });
+    await seedEvent({ slug: 'archivado', name: 'Archivado', status: 'archived' });
+
+    for (const reference of ['borrador', 'cerrado', 'archivado', UNKNOWN_ID]) {
+      const response = await api(`/public/events/${reference}`, '');
+
+      expect(response.status).toBe(404);
+      await expect(errorCodeOf(response)).resolves.toBe('EVENT_NOT_FOUND');
+    }
+  });
+
+  it('deja fuera las sedes cerradas y los establecimientos apagados', async () => {
+    const event = await seedEvent();
+    const north = await seedEstablishment();
+    const inactive = await seedEstablishment({ code: 'sur', name: 'Sede Sur', status: 'inactive' });
+    const closed = await seedEstablishment({ code: 'centro', name: 'Sede Centro' });
+
+    const open = await seedParticipation(event.id, north.id);
+    await seedParticipation(event.id, inactive.id);
+    await seedParticipation(event.id, closed.id, { status: 'closed' });
+

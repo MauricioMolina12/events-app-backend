@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, gte, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, ne, or, sql, type SQL } from 'drizzle-orm';
 import type { Database } from '../../db/client';
 import { mapConstraintViolation, withConstraintTranslation } from '../../db/constraints';
 import { newId } from '../../db/helpers';
@@ -6,8 +6,10 @@ import {
   eventEstablishments,
   qrCodes,
   registrationCompanions,
+  registrationDocuments,
   registrations,
   type DocumentType,
+  type RegistrationDocumentRole,
   type RegistrationSource,
   type RegistrationStatus,
 } from '../../db/schema';
@@ -36,12 +38,14 @@ export interface CreateCompanionInput {
 }
 
 export interface CreateRegistrationInput {
+  eventId: string;
   participationId: string;
   documentType: DocumentType;
   documentNumber: string;
   fullName: string;
   email?: string | null;
   phone?: string | null;
+  requiresElectronicInvoice?: boolean;
   companions?: readonly CreateCompanionInput[];
   status?: RegistrationStatus;
   source?: RegistrationSource;
@@ -52,14 +56,30 @@ export interface CreatedRegistration {
   companions: RegistrationCompanionRow[];
 }
 
-export interface ListRegistrationsOptions {
-  status?: RegistrationStatus;
+export interface RegistrationFilters {
+  readonly participationId?: string;
+  readonly status?: RegistrationStatus;
+  readonly search?: string;
+}
+
+export interface ListRegistrationsOptions extends RegistrationFilters {
   limit?: number;
   offset?: number;
 }
 
+export interface ActiveRegistrationDocument {
+  readonly documentType: DocumentType;
+  readonly documentNumber: string;
+  readonly role: RegistrationDocumentRole;
+}
+
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;
+
+/** Misma normalizacion que el servicio: el indice unico compara el valor guardado. */
+function storedDocumentNumber(value: string): string {
+  return value.trim().toUpperCase().replace(/[\s.-]/g, '');
+}
 
 /**
  * Crea el registro y, si los hay, sus acompanantes en la misma unidad de trabajo.
@@ -77,10 +97,11 @@ export async function createRegistration(
     id: registrationId,
     participationId: input.participationId,
     documentType: input.documentType,
-    documentNumber: input.documentNumber,
+    documentNumber: storedDocumentNumber(input.documentNumber),
     fullName: input.fullName,
     email: input.email ?? null,
     phone: input.phone ?? null,
+    requiresElectronicInvoice: input.requiresElectronicInvoice ?? false,
     companionsCount: input.companions?.length ?? 0,
     status: input.status ?? ('confirmed' as const),
     source: input.source ?? ('public' as const),
@@ -94,14 +115,53 @@ export async function createRegistration(
     registrationId,
     fullName: companion.fullName,
     documentType: companion.documentType ?? null,
-    documentNumber: companion.documentNumber ?? null,
+    documentNumber:
+      companion.documentNumber === undefined || companion.documentNumber === null
+        ? null
+        : storedDocumentNumber(companion.documentNumber),
     createdAt: now,
     updatedAt: now,
   }));
 
+  const documentValues = [
+    {
+      id: newId(),
+      eventId: input.eventId,
+      participationId: input.participationId,
+      registrationId,
+      role: 'holder' as const,
+      documentType: input.documentType,
+      documentNumber: storedDocumentNumber(input.documentNumber),
+      status: 'active' as const,
+      releasedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    },
+    ...companionValues
+      .filter(
+        (companion) => companion.documentType !== null && companion.documentNumber !== null,
+      )
+      .map((companion) => ({
+        id: newId(),
+        eventId: input.eventId,
+        participationId: input.participationId,
+        registrationId,
+        role: 'companion' as const,
+        documentType: companion.documentType as DocumentType,
+        documentNumber: companion.documentNumber as string,
+        status: 'active' as const,
+        releasedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      })),
+  ];
+
   try {
     if (companionValues.length === 0) {
-      const [registration] = await db.insert(registrations).values(values).returning();
+      const [[registration]] = await db.batch([
+        db.insert(registrations).values(values).returning(),
+        db.insert(registrationDocuments).values(documentValues),
+      ]);
       if (registration === undefined) {
         throw new Error('El INSERT del registro no devolvio ninguna fila.');
       }
@@ -111,6 +171,7 @@ export async function createRegistration(
     const [[registration], companions] = await db.batch([
       db.insert(registrations).values(values).returning(),
       db.insert(registrationCompanions).values(companionValues).returning(),
+      db.insert(registrationDocuments).values(documentValues),
     ]);
 
     if (registration === undefined) {
@@ -120,6 +181,98 @@ export async function createRegistration(
   } catch (error) {
     throw mapConstraintViolation(error);
   }
+}
+
+function filterConditions(filters: RegistrationFilters): SQL[] {
+  const conditions: SQL[] = [];
+
+  if (filters.participationId !== undefined) {
+    conditions.push(eq(registrations.participationId, filters.participationId));
+  }
+  if (filters.status !== undefined) {
+    conditions.push(eq(registrations.status, filters.status));
+  }
+
+  const search = filters.search?.trim().toLowerCase();
+  if (search !== undefined && search !== '') {
+    const matching = or(
+      sql`instr(lower(${registrations.fullName}), ${search}) > 0`,
+      sql`instr(lower(${registrations.documentNumber}), ${search}) > 0`,
+      sql`instr(lower(coalesce(${registrations.email}, '')), ${search}) > 0`,
+    );
+    if (matching !== undefined) {
+      conditions.push(matching);
+    }
+  }
+
+  return conditions;
+}
+
+export async function listRegistrations(
+  db: Database,
+  options: ListRegistrationsOptions = {},
+): Promise<RegistrationRow[]> {
+  const limit = Math.min(options.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+  const conditions = filterConditions(options);
+
+  return db
+    .select()
+    .from(registrations)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(registrations.registeredAt))
+    .limit(limit)
+    .offset(options.offset ?? 0);
+}
+
+export async function countRegistrations(
+  db: Database,
+  filters: RegistrationFilters = {},
+): Promise<number> {
+  const conditions = filterConditions(filters);
+  const [row] = await db
+    .select({ total: sql<number>`count(*)` })
+    .from(registrations)
+    .where(conditions.length > 0 ? and(...conditions) : undefined);
+
+  return row?.total ?? 0;
+}
+
+export async function listActiveDocumentsForEvent(
+  db: Database,
+  eventId: string,
+): Promise<readonly ActiveRegistrationDocument[]> {
+  return db
+    .select({
+      documentType: registrationDocuments.documentType,
+      documentNumber: registrationDocuments.documentNumber,
+      role: registrationDocuments.role,
+    })
+    .from(registrationDocuments)
+    .where(
+      and(eq(registrationDocuments.eventId, eventId), eq(registrationDocuments.status, 'active')),
+    );
+}
+
+export async function insertQrCode(
+  db: Database,
+  registrationId: string,
+  tokenHash: string,
+  now: Date = new Date(),
+): Promise<void> {
+  await withConstraintTranslation(async () => {
+    await db.insert(qrCodes).values({
+      id: newId(),
+      registrationId,
+      tokenHash,
+      status: 'active',
+      issuedAt: now,
+      issuedBy: null,
+      revokedAt: null,
+      revokedBy: null,
+      revokedReason: null,
+      createdAt: now,
+    });
+  });
 }
 
 export async function findRegistrationById(
@@ -155,6 +308,125 @@ export async function findActiveRegistrationByDocument(
     )
     .limit(1);
   return row ?? null;
+}
+
+/**
+ * Registro vigente cuyo titular tiene ese documento en el evento.
+ *
+ * Se resuelve por `registration_documents` porque es ahi donde el documento es unico
+ * por evento; un documento usado como acompanante no devuelve nada.
+ */
+export async function findActiveHolderRegistration(
+  db: Database,
+  eventId: string,
+  documentType: DocumentType,
+  documentNumber: string,
+): Promise<RegistrationRow | null> {
+  const [row] = await db
+    .select({ registration: registrations })
+    .from(registrationDocuments)
+    .innerJoin(registrations, eq(registrations.id, registrationDocuments.registrationId))
+    .where(
+      and(
+        eq(registrationDocuments.eventId, eventId),
+        eq(registrationDocuments.role, 'holder'),
+        eq(registrationDocuments.status, 'active'),
+        eq(registrationDocuments.documentType, documentType),
+        eq(registrationDocuments.documentNumber, storedDocumentNumber(documentNumber)),
+        ne(registrations.status, 'cancelled'),
+      ),
+    )
+    .limit(1);
+  return row?.registration ?? null;
+}
+
+export interface AppendCompanionsInput {
+  readonly eventId: string;
+  readonly registration: RegistrationRow;
+  readonly companions: readonly CreateCompanionInput[];
+  readonly maxCompanions: number;
+}
+
+/**
+ * Suma acompanantes a un registro confirmado.
+ *
+ * El contador se mueve primero con una transicion guardada
+ * (`companions_count + n <= max`), que es la defensa ante dos envios simultaneos;
+ * `null` significa que el tope ya no lo permite o que el registro dejo de estar
+ * confirmado. Despues entran las filas y los documentos como un grupo atomico; si
+ * ese grupo falla (documento duplicado), el contador se devuelve.
+ *
+ * No reserva cupo de la sede: lo hace el servicio antes de llamar.
+ */
+export async function appendCompanions(
+  db: Database,
+  input: AppendCompanionsInput,
+  now: Date = new Date(),
+): Promise<CreatedRegistration | null> {
+  const { registration } = input;
+  const added = input.companions.length;
+
+  const [updated] = await db
+    .update(registrations)
+    .set({ companionsCount: sql`${registrations.companionsCount} + ${added}`, updatedAt: now })
+    .where(
+      and(
+        eq(registrations.id, registration.id),
+        eq(registrations.status, 'confirmed'),
+        sql`${registrations.companionsCount} + ${added} <= ${input.maxCompanions}`,
+      ),
+    )
+    .returning();
+
+  if (updated === undefined) {
+    return null;
+  }
+
+  const companionValues = input.companions.map((companion) => ({
+    id: newId(),
+    registrationId: registration.id,
+    fullName: companion.fullName,
+    documentType: companion.documentType ?? null,
+    documentNumber:
+      companion.documentNumber === undefined || companion.documentNumber === null
+        ? null
+        : storedDocumentNumber(companion.documentNumber),
+    createdAt: now,
+    updatedAt: now,
+  }));
+
+  const documentValues = companionValues
+    .filter((companion) => companion.documentType !== null && companion.documentNumber !== null)
+    .map((companion) => ({
+      id: newId(),
+      eventId: input.eventId,
+      participationId: registration.participationId,
+      registrationId: registration.id,
+      role: 'companion' as const,
+      documentType: companion.documentType as DocumentType,
+      documentNumber: companion.documentNumber as string,
+      status: 'active' as const,
+      releasedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    }));
+
+  try {
+    const [companions] =
+      documentValues.length === 0
+        ? await db.batch([db.insert(registrationCompanions).values(companionValues).returning()])
+        : await db.batch([
+            db.insert(registrationCompanions).values(companionValues).returning(),
+            db.insert(registrationDocuments).values(documentValues),
+          ]);
+    return { registration: updated, companions };
+  } catch (error) {
+    await db
+      .update(registrations)
+      .set({ companionsCount: sql`${registrations.companionsCount} - ${added}`, updatedAt: now })
+      .where(eq(registrations.id, registration.id));
+    throw mapConstraintViolation(error);
+  }
 }
 
 export async function listRegistrationsByParticipation(
@@ -260,6 +532,15 @@ export async function cancelRegistration(
         .update(qrCodes)
         .set({ status: 'revoked', revokedAt: now, revokedReason: 'registration_cancelled' })
         .where(and(eq(qrCodes.registrationId, registrationId), eq(qrCodes.status, 'active'))),
+      db
+        .update(registrationDocuments)
+        .set({ status: 'released', releasedAt: now, updatedAt: now })
+        .where(
+          and(
+            eq(registrationDocuments.registrationId, registrationId),
+            eq(registrationDocuments.status, 'active'),
+          ),
+        ),
     ]),
   );
 

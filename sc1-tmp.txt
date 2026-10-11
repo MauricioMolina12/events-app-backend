@@ -1,0 +1,108 @@
+﻿describe('esquema en D1', () => {
+  it('crea todas las tablas del modelo de datos', async () => {
+    const tables = (await listSchemaObjects('table')).map((row) => row.name);
+
+    for (const expected of EXPECTED_TABLES) {
+      expect(tables).toContain(expected);
+    }
+  });
+
+  it('deja constancia de la migracion aplicada', async () => {
+    expect(await countRows('d1_migrations')).toBeGreaterThan(0);
+  });
+
+  it('declara los indices de invariantes como parciales', async () => {
+    const indexes = await listSchemaObjects('index');
+
+    for (const name of EXPECTED_PARTIAL_INDEXES) {
+      const index = indexes.find((row) => row.name === name);
+      expect(index, `falta el indice ${name}`).toBeDefined();
+      expect(index?.sql ?? '', `el indice ${name} no es parcial`).toContain('WHERE');
+    }
+  });
+
+  it('limita los predicados de los indices parciales al caso que protegen', async () => {
+    const indexes = await listSchemaObjects('index');
+    const document = indexes.find(
+      (row) => row.name === 'registrations_participation_document_unique',
+    );
+    const qr = indexes.find((row) => row.name === 'qr_codes_active_per_registration_unique');
+
+    // Cancelar libera el documento: el indice debe ignorar los cancelados.
+    expect(document?.sql ?? '').toContain('cancelled');
+    // Una QR revocada no cuenta: el indice solo mira las activas.
+    expect(qr?.sql ?? '').toContain('active');
+  });
+});
+
+describe('restricciones activas en la base de datos', () => {
+  it('rechaza un cupo confirmado por encima de la capacidad', async () => {
+    await seedCatalog({ titularCapacity: 1 });
+
+    await expect(
+      env.DB.prepare('UPDATE event_establishments SET confirmed_titulares = 2 WHERE id = ?')
+        .bind('part-1')
+        .run(),
+    ).rejects.toThrow(/event_establishments_titular_capacity_check/);
+  });
+
+  it('impide dos participaciones del mismo establecimiento en el mismo evento', async () => {
+    await seedCatalog();
+
+    await expect(
+      env.DB.prepare(
+        "INSERT INTO event_establishments (id, event_id, establishment_id, status, titular_capacity, companion_capacity, confirmed_titulares, confirmed_companions, created_at, updated_at) VALUES ('part-2', 'evt-1', 'est-1', 'open', 1, 1, 0, 0, ?, ?)",
+      )
+        .bind(NOW, NOW)
+        .run(),
+    ).rejects.toThrow(/UNIQUE constraint failed/);
+  });
+
+  it('exige que la participacion apunte a un evento existente', async () => {
+    await expect(
+      env.DB.prepare(
+        "INSERT INTO event_establishments (id, event_id, establishment_id, status, titular_capacity, companion_capacity, confirmed_titulares, confirmed_companions, created_at, updated_at) VALUES ('part-9', 'evt-inexistente', 'est-1', 'open', 1, 1, 0, 0, ?, ?)",
+      )
+        .bind(NOW, NOW)
+        .run(),
+    ).rejects.toThrow(/FOREIGN KEY constraint failed/);
+  });
+
+  it('protege las sedes con participaciones frente al borrado', async () => {
+    await seedCatalog();
+
+    await expect(
+      env.DB.prepare('DELETE FROM establishments WHERE id = ?').bind('est-1').run(),
+    ).rejects.toThrow(/FOREIGN KEY constraint failed/);
+  });
+
+  it('borra los acompanantes en cascada con su registro', async () => {
+    const { participationId } = await seedCatalog();
+
+    await env.DB.batch([
+      env.DB.prepare(
+        'INSERT INTO registrations (id, participation_id, document_type, document_number, full_name, companions_count, status, source, registered_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)',
+      ).bind('reg-1', participationId, 'CC', '100', 'Titular', 'confirmed', 'admin', NOW, NOW, NOW),
+      env.DB.prepare(
+        'INSERT INTO registration_companions (id, registration_id, full_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      ).bind('comp-1', 'reg-1', 'Acompanante', NOW, NOW),
+    ]);
+
+    expect(await countRows('registration_companions')).toBe(1);
+
+    await env.DB.prepare('DELETE FROM registrations WHERE id = ?').bind('reg-1').run();
+
+    expect(await countRows('registration_companions')).toBe(0);
+  });
+
+  it('mantiene una sola QR activa por registro', async () => {
+    const { participationId } = await seedCatalog();
+    const registrationId = await insertRegistration(participationId);
+
+    const insertQr = (id: string, status: string): Promise<unknown> =>
+      env.DB.prepare(
+        'INSERT INTO qr_codes (id, registration_id, token_hash, status, issued_at, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+        .bind(id, registrationId, `hash-${id}`, status, NOW, NOW)
+        .run();
+

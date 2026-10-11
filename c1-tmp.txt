@@ -1,0 +1,107 @@
+﻿  {
+    index: 'registrations_participation_document_unique',
+    columns: [
+      'registrations.participation_id',
+      'registrations.document_type',
+      'registrations.document_number',
+    ],
+    error: () =>
+      AppError.conflict(
+        ErrorCode.DUPLICATE_REGISTRATION,
+        'Ya existe un registro con ese documento en este establecimiento.',
+      ),
+  },
+  {
+    index: 'registration_companions_document_unique',
+    columns: [
+      'registration_companions.registration_id',
+      'registration_companions.document_type',
+      'registration_companions.document_number',
+    ],
+    error: () =>
+      AppError.unprocessable(
+        ErrorCode.VALIDATION_ERROR,
+        'El mismo documento no puede repetirse entre los acompanantes de un registro.',
+      ),
+  },
+  {
+    index: 'qr_codes_active_per_registration_unique',
+    columns: ['qr_codes.registration_id'],
+    error: () =>
+      AppError.conflict(ErrorCode.QR_ALREADY_ACTIVE, 'El registro ya tiene un codigo QR activo.'),
+  },
+  {
+    index: 'shift_assignments_registration_active_unique',
+    columns: ['shift_assignments.registration_id'],
+    error: () =>
+      AppError.conflict(
+        ErrorCode.CHECK_IN_ALREADY_ASSIGNED,
+        'El registro ya tiene un turno asignado.',
+      ),
+  },
+  {
+    index: 'capacity_adjustments_participation_pending_unique',
+    columns: ['capacity_adjustments.participation_id'],
+    error: () =>
+      AppError.conflict(
+        ErrorCode.CAPACITY_ADJUSTMENT_INVALID,
+        'Ya existe una solicitud de ajuste de cupo pendiente para esta sede.',
+      ),
+  },
+];
+
+/**
+ * Invariantes de integridad comprobados por `CHECK`.
+ *
+ * Son la red de seguridad de los contadores de cupo: si un camino del codigo
+ * intenta sobrepasarlos, el error se traduce igual que si lo hubiera detectado
+ * el servicio.
+ */
+export const CHECK_INVARIANTS: readonly CheckInvariant[] = [
+  {
+    name: 'event_establishments_titular_capacity_check',
+    error: () =>
+      AppError.conflict(
+        ErrorCode.TITULAR_CAPACITY_EXCEEDED,
+        'El cupo de titulares de la sede esta completo.',
+      ),
+  },
+  {
+    name: 'event_establishments_companion_capacity_check',
+    error: () =>
+      AppError.conflict(
+        ErrorCode.COMPANION_CAPACITY_EXCEEDED,
+        'El cupo de acompanantes de la sede esta completo.',
+      ),
+  },
+  {
+    name: 'shifts_assigned_count_check',
+    error: () => AppError.conflict(ErrorCode.TURN_ASSIGNMENT_CONFLICT, 'El turno ya esta completo.'),
+  },
+];
+
+/**
+ * Texto util del error: los mensajes de toda la cadena de `cause`, unidos.
+ *
+ * No basta con `error.message` porque **Drizzle envuelve** el fallo del driver:
+ * lanza `DrizzleQueryError` con el mensaje `Failed query: ...` y deja el texto
+ * real de SQLite en `cause`. Sin recorrer la cadena, ninguna restriccion se
+ * reconoceria y todo choque terminaria como `INTERNAL_ERROR`.
+ */
+function errorMessage(error: unknown): string {
+  const messages: string[] = [];
+  const visited = new Set<unknown>();
+  let current: unknown = error;
+
+  while (current !== null && current !== undefined && messages.length < MAX_CAUSE_DEPTH) {
+    if (visited.has(current)) {
+      break;
+    }
+    visited.add(current);
+
+    if (current instanceof Error) {
+      messages.push(current.message);
+      current = current.cause;
+      continue;
+    }
+

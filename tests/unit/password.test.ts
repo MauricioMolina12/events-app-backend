@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { AUTH_DEFAULTS, PBKDF2_MAX_ITERATIONS } from '../../src/config/constants';
 import { base64ToBytes } from '../../src/core/crypto/encoding';
 import {
   MIN_PBKDF2_ITERATIONS,
@@ -10,8 +11,8 @@ import {
 /**
  * Pruebas de la derivacion de contrasenas.
  *
- * Se usan pocas iteraciones para que la suite siga siendo rapida; el valor real
- * de produccion (210 000) se comprueba en los tests de configuracion.
+ * Se usan pocas iteraciones para que la suite siga siendo rapida; el coste real
+ * debe mantenerse dentro del limite de WebCrypto de Cloudflare Workers.
  */
 const FAST = { iterations: 2_000 };
 
@@ -42,6 +43,13 @@ describe('derivacion de contrasenas (PBKDF2-SHA256)', () => {
     const digest = await hashPassword('x', { iterations: 1 });
 
     expect(digest.iterations).toBe(MIN_PBKDF2_ITERATIONS);
+  });
+
+  it('mantiene el coste por defecto dentro del limite soportado por Workers', async () => {
+    expect(AUTH_DEFAULTS.pbkdf2Iterations).toBe(PBKDF2_MAX_ITERATIONS);
+    await expect(
+      hashPassword('x', { iterations: PBKDF2_MAX_ITERATIONS + 1 }),
+    ).rejects.toThrow(RangeError);
   });
 
   it('produce un derivado de 32 bytes y un salt de 16, en base64', async () => {

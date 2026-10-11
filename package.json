@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy --env production",
+    "deploy:development": "wrangler deploy --env development",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "pretypecheck": "npm run cf-typegen",
     "typecheck": "tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
@@ -16,6 +17,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply events-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply events-db --env production --remote",
+    "db:migrate:development": "wrangler d1 migrations apply events-db-development --env development --remote",
     "db:seed:local": "wrangler d1 execute events-db --local --file=./src/db/seeds/dev.sql"
   },
   "dependencies": {

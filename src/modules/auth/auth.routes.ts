@@ -6,12 +6,15 @@ import { errorResponse } from '../../core/http/error-response';
 import { apiSuccess } from '../../core/http/responses';
 import type { AppEnv } from '../../core/types/context';
 import { createDb } from '../../db/client';
+import { updateUserLoginSuccess } from '../users/users.repository';
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, createUser } from '../users/users.service';
 import {
   currentAuthSession,
   currentAuthUser,
   requireAuth,
   sessionTokenOf,
 } from './auth.middleware';
+import { insertSession } from './auth.repository';
 import {
   activeSessionSchema,
   authenticatedUserSchema,
@@ -19,7 +22,13 @@ import {
   toAuthPrincipal,
 } from './auth.schemas';
 import { login, logoutByToken } from './auth.service';
-import { expiredSessionCookieOptions, sessionCookieOptions, sessionCookieSettings } from './session';
+import {
+  cookieSettingsForRequest,
+  expiredSessionCookieOptions,
+  issueSessionToken,
+  sessionCookieOptions,
+  sessionExpiresAt,
+} from './session';
 
 /**
  * Rutas de autenticacion.
@@ -35,6 +44,18 @@ const loginRequestSchema = z
   })
   .openapi('LoginRequest');
 
+const signupRequestSchema = z
+  .object({
+    email: z.email().max(320),
+    fullName: z.string().trim().min(1).max(160),
+    password: z
+      .string()
+      .min(PASSWORD_MIN_LENGTH)
+      .max(PASSWORD_MAX_LENGTH)
+      .openapi({ description: `Minimo ${PASSWORD_MIN_LENGTH} caracteres.` }),
+  })
+  .openapi('SignupRequest');
+
 /** Cuerpo compartido por `login` y `me`: la sesion y su titular. */
 const sessionPayloadSchema = z.object({
   user: authenticatedUserSchema,
@@ -45,14 +66,20 @@ const loginResponseSchema = z
   .object({ success: z.literal(true), data: sessionPayloadSchema })
   .openapi('LoginResponse');
 
+const signupResponseSchema = z
+  .object({ success: z.literal(true), data: sessionPayloadSchema })
+  .openapi('SignupResponse');
+
 const loginRoute = createRoute({
   method: 'post',
   path: '/auth/login',
   tags: ['Autenticacion'],
   summary: 'Inicia sesion',
   description: [
-    'Valida las credenciales y emite una cookie de sesion `HttpOnly`, `SameSite=Lax`',
-    'y `Secure` fuera de `local`. El token en claro solo viaja en esa cookie.',
+    'Valida las credenciales y emite una cookie de sesion `HttpOnly` y `Secure`',
+    'fuera de `local`. Usa `SameSite=None` solo si el origen es localhost contra',
+    'el Worker remoto; el sitio publicado y production usan `SameSite=Lax`.',
+    'El token solo viaja en esa cookie.',
     '',
     'Responde 401 con `INVALID_CREDENTIALS` (email o contrasena incorrectos, mismo',
     'codigo para un email inexistente), `ACCOUNT_LOCKED` (bloqueo progresivo por',
@@ -92,7 +119,7 @@ const loginHandler: RouteHandler<typeof loginRoute, AppEnv> = async (c) => {
     config.auth,
   );
 
-  const settings = sessionCookieSettings(config.auth);
+  const settings = cookieSettingsForRequest(config.auth, config.environment, c.req.header('origin'));
   setCookie(c, settings.name, outcome.token, sessionCookieOptions(settings));
 
   return c.json(
@@ -104,6 +131,78 @@ const loginHandler: RouteHandler<typeof loginRoute, AppEnv> = async (c) => {
       }),
     }),
     200,
+  );
+};
+
+const signupRoute = createRoute({
+  method: 'post',
+  path: '/auth/signup',
+  tags: ['Autenticacion'],
+  summary: 'Crea una cuenta nueva y entra',
+  description: [
+    'Registra a un usuario nuevo con rol `operator` y estado `active` y emite una',
+    'sesion inmediatamente para que pueda empezar a navegar autenticado.',
+    '',
+    'Responde 409 con `EMAIL_ALREADY_USED` cuando el email ya existe y 422 con',
+    '`VALIDATION_ERROR` si la contrasena o el nombre no cumplen la politica.',
+  ].join('\n'),
+  request: {
+    body: {
+      required: true,
+      content: { 'application/json': { schema: signupRequestSchema } },
+    },
+  },
+  responses: {
+    201: {
+      description: 'Cuenta creada y sesion emitida.',
+      content: { 'application/json': { schema: signupResponseSchema } },
+    },
+    409: errorResponse('Ya existe una cuenta con ese email.'),
+    422: errorResponse('El cuerpo no cumple el formato esperado.'),
+  },
+});
+
+const signupHandler: RouteHandler<typeof signupRoute, AppEnv> = async (c) => {
+  const config = readRuntimeConfig(c.env);
+  const db = createDb(c.env);
+  const payload = c.req.valid('json');
+  const user = await createUser(
+    db,
+    {
+      email: payload.email,
+      fullName: payload.fullName,
+      password: payload.password,
+      role: 'operator',
+      status: 'active',
+    },
+    config.auth,
+  );
+
+  const { token, tokenHash } = await issueSessionToken();
+  const session = await insertSession(
+    db,
+    {
+      userId: user.id,
+      tokenHash,
+      expiresAt: sessionExpiresAt(new Date(), config.auth.sessionTtlHours),
+    },
+    new Date(),
+  );
+
+  await updateUserLoginSuccess(db, user.id, new Date());
+
+  const settings = cookieSettingsForRequest(config.auth, config.environment, c.req.header('origin'));
+  setCookie(c, settings.name, token, sessionCookieOptions(settings));
+
+  return c.json(
+    apiSuccess({
+      user: toAuthPrincipal(user),
+      session: toActiveSession({
+        id: session.id,
+        expiresAt: session.expiresAt,
+      }),
+    }),
+    201,
   );
 };
 
@@ -128,7 +227,7 @@ const logoutRoute = createRoute({
 
 const logoutHandler: RouteHandler<typeof logoutRoute, AppEnv> = async (c) => {
   const config = readRuntimeConfig(c.env);
-  const settings = sessionCookieSettings(config.auth);
+  const settings = cookieSettingsForRequest(config.auth, config.environment, c.req.header('origin'));
   const revoked = await logoutByToken(createDb(c.env), sessionTokenOf(c));
 
   // La cookie se borra siempre: si el token ya no existe, el navegador no debe
@@ -174,6 +273,7 @@ const meHandler: RouteHandler<typeof meRoute, AppEnv> = (c) => {
 /** Registra las rutas de autenticacion. */
 export function registerAuthRoutes(app: OpenAPIHono<AppEnv>): void {
   app.openapi(loginRoute, loginHandler);
+  app.openapi(signupRoute, signupHandler);
   app.openapi(logoutRoute, logoutHandler);
   app.openapi(meRoute, meHandler);
 }

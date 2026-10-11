@@ -20,6 +20,7 @@ interface EventBody {
   endsAt: string | null;
   registrationOpensAt: string | null;
   registrationClosesAt: string | null;
+  capacity: number;
   status: string;
   createdBy: string | null;
   createdAt: string;
@@ -41,7 +42,10 @@ beforeEach(truncateAll);
 
 /** Crea un evento por la API y devuelve la ficha creada. */
 async function createEvent(cookie: string, body: Record<string, unknown>): Promise<EventBody> {
-  const response = await api('/events', cookie, { method: 'POST', body: JSON.stringify(body) });
+  const response = await api('/events', cookie, {
+    method: 'POST',
+    body: JSON.stringify({ capacity: 200, ...body }),
+  });
   expect(response.status).toBe(201);
   return (await response.json<EventResponse>()).data;
 }
@@ -63,18 +67,39 @@ describe('autorizacion del catalogo de eventos', () => {
     await expect(errorCodeOf(response)).resolves.toBe('UNAUTHENTICATED');
   });
 
-  it('deja leer al operador pero no escribir', async () => {
+  it('deja al operador operar solo los eventos que el admin le asigna', async () => {
+    const admin = await seedAdmin();
     const operator = await seedOperator();
+    const foreign = await createEvent(admin.cookie, {
+      slug: 'ajeno',
+      name: 'Evento ajeno',
+    });
+
+    const denied = await api('/events', operator.cookie, {
+      method: 'POST',
+      body: JSON.stringify({ slug: 'del-operador', name: 'Evento propio', capacity: 80 }),
+    });
+    expect(denied.status).toBe(403);
+
+    const own = await createEvent(admin.cookie, {
+      slug: 'del-operador',
+      name: 'Evento propio',
+      capacity: 80,
+      ownerId: operator.id,
+    });
+    expect(own.createdBy).toBe(operator.id);
 
     const list = await api('/events', operator.cookie);
     expect(list.status).toBe(200);
+    const listed = (await list.json<EventListResponse>()).data.map((event) => event.id);
+    expect(listed).toEqual([own.id]);
 
-    const create = await api('/events', operator.cookie, {
-      method: 'POST',
-      body: JSON.stringify({ slug: 'del-operador', name: 'No permitido' }),
-    });
-    expect(create.status).toBe(403);
-    await expect(errorCodeOf(create)).resolves.toBe('FORBIDDEN');
+    const renamed = await patchEvent(operator.cookie, own.id, { name: 'Evento propio editado' });
+    expect(renamed.status).toBe(200);
+
+    const foreignPatch = await patchEvent(operator.cookie, foreign.id, { name: 'Intento' });
+    expect(foreignPatch.status).toBe(403);
+    await expect(errorCodeOf(foreignPatch)).resolves.toBe('FORBIDDEN');
   });
 });
 
@@ -93,6 +118,7 @@ describe('POST /events', () => {
 
     expect(event.status).toBe('draft');
     expect(event.timezone).toBe('America/Bogota');
+    expect(event.capacity).toBe(200);
     expect(event.startsAt).toBe('2026-04-25T15:00:00.000Z');
     expect(event.registrationOpensAt).toBe('2026-04-01T12:00:00.000Z');
     expect(event.endsAt).toBeNull();
@@ -146,7 +172,7 @@ describe('POST /events', () => {
 
     const response = await api('/events', admin.cookie, {
       method: 'POST',
-      body: JSON.stringify({ slug: 'feria-2026', name: 'Feria repetida' }),
+      body: JSON.stringify({ slug: 'feria-2026', name: 'Feria repetida', capacity: 200 }),
     });
 
     expect(response.status).toBe(409);
@@ -158,7 +184,12 @@ describe('POST /events', () => {
 
     const response = await api('/events', admin.cookie, {
       method: 'POST',
-      body: JSON.stringify({ slug: 'nacido-cerrado', name: 'Nacido cerrado', status: 'closed' }),
+      body: JSON.stringify({
+        slug: 'nacido-cerrado',
+        name: 'Nacido cerrado',
+        status: 'closed',
+        capacity: 200,
+      }),
     });
 
     expect(response.status).toBe(409);
@@ -312,5 +343,35 @@ describe('PATCH /events/{id}', () => {
 
     expect(response.status).toBe(404);
     await expect(errorCodeOf(response)).resolves.toBe('EVENT_NOT_FOUND');
+  });
+
+  it('no deja bajar el cupo general por debajo de lo asignado a las sedes', async () => {
+    const admin = await seedAdmin();
+    const event = await createEvent(admin.cookie, {
+      slug: 'cupo-general',
+      name: 'Cupo general',
+      capacity: 20,
+    });
+    const sede = await api('/establishments', admin.cookie, {
+      method: 'POST',
+      body: JSON.stringify({ code: 'norte', name: 'Norte' }),
+    });
+    expect(sede.status).toBe(201);
+    const establishmentId = ((await sede.json()) as { data: { id: string } }).data.id;
+    const participation = await api('/participations', admin.cookie, {
+      method: 'POST',
+      body: JSON.stringify({
+        eventId: event.id,
+        establishmentId,
+        titularCapacity: 10,
+        companionCapacity: 5,
+      }),
+    });
+    expect(participation.status).toBe(201);
+
+    const response = await patchEvent(admin.cookie, event.id, { capacity: 14 });
+
+    expect(response.status).toBe(409);
+    await expect(errorCodeOf(response)).resolves.toBe('EVENT_CAPACITY_EXCEEDED');
   });
 });

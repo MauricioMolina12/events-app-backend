@@ -1,0 +1,173 @@
+﻿    }
+
+    if (seen.has(key)) {
+      throw AppError.unprocessable(
+        ErrorCode.VALIDATION_ERROR,
+        'Un documento no puede repetirse entre los acompanantes de un registro.',
+        { details: { field: `companions[${index}].documentNumber` } },
+      );
+    }
+
+    seen.add(key);
+  });
+}
+
+/**
+ * Ventana efectiva de registro.
+ *
+ * La sede manda: si define su propia ventana sustituye la del evento, y si no la
+ * define la hereda. Sin ventana en ninguno de los dos, el registro depende solo
+ * del estado.
+ */
+export function effectiveRegistrationWindow(
+  event: RegistrationWindowSource,
+  participation: RegistrationWindowSource,
+): RegistrationWindow {
+  return {
+    opensAt: participation.registrationOpensAt ?? event.registrationOpensAt,
+    closesAt: participation.registrationClosesAt ?? event.registrationClosesAt,
+  };
+}
+
+/** `true` si `now` cae dentro de la ventana; un extremo ausente no filtra. */
+export function isWithinRegistrationWindow(window: RegistrationWindow, now: Date): boolean {
+  if (window.opensAt !== null && now.getTime() < window.opensAt.getTime()) {
+    return false;
+  }
+  if (window.closesAt !== null && now.getTime() > window.closesAt.getTime()) {
+    return false;
+  }
+
+  return true;
+}
+
+/** Exige que la ventana este abierta en `now`. */
+export function assertRegistrationWindow(window: RegistrationWindow, now: Date): void {
+  if (isWithinRegistrationWindow(window, now)) {
+    return;
+  }
+
+  throw AppError.conflict(
+    ErrorCode.REGISTRATION_OUTSIDE_WINDOW,
+    'El registro esta fuera de la ventana de inscripcion.',
+    {
+      details: {
+        opensAt: toIsoString(window.opensAt),
+        closesAt: toIsoString(window.closesAt),
+        now: now.toISOString(),
+      },
+    },
+  );
+}
+
+/** El registro solo existe para eventos publicados. */
+export function assertEventPublished(status: EventStatus): void {
+  if (status !== 'published') {
+    throw AppError.conflict(
+      ErrorCode.EVENT_NOT_REGISTRABLE,
+      'El evento no admite registros: todavia no esta publicado o ya se cerro.',
+      { details: { status } },
+    );
+  }
+}
+
+/** La sede debe estar abierta y activa para recibir registros. */
+export function assertParticipationAcceptsRegistrations(
+  status: ParticipationStatus,
+  establishmentStatus: EstablishmentStatus,
+): void {
+  if (status !== 'open' || establishmentStatus !== 'active') {
+    throw AppError.conflict(ErrorCode.PARTICIPATION_CLOSED, 'La sede no esta recibiendo registros.', {
+      details: { status, establishmentStatus },
+    });
+  }
+}
+
+/**
+ * Listado paginado de registros.
+ *
+ * Se filtra por sede, estado y texto libre (nombre, documento o email); el conteo
+ * se calcula sobre los mismos filtros para que `meta.total` corresponda con lo que
+ * el cliente puede recorrer.
+ */
+export async function listRegistrationCatalog(
+  db: Database,
+  query: RegistrationListQuery = {},
+): Promise<RegistrationPage> {
+  const limit = clampLimit(query.limit, REGISTRATION_PAGE_LIMITS);
+  const offset = clampOffset(query.offset);
+  const filters = {
+    participationId: query.participationId,
+    status: query.status,
+    search: query.search,
+  };
+
+  const [items, total] = await Promise.all([
+    listRegistrations(db, { ...filters, limit, offset }),
+    countRegistrations(db, filters),
+  ]);
+
+  return { items, total, limit, offset };
+}
+
+/** Devuelve el registro con sus acompanantes o lanza `REGISTRATION_NOT_FOUND`. */
+export async function getRegistrationDetail(db: Database, id: string): Promise<RegistrationDetail> {
+  const registration = await findRegistrationById(db, id);
+
+  if (registration === null) {
+    throw registrationNotFound(id);
+  }
+
+  const companions = await listCompanions(db, id);
+
+  return { registration, companions };
+}
+
+/**
+ * Registra a una persona (titular) y, si vienen, a sus acompanantes.
+ *
+ * El cupo se reserva antes de escribir porque es el recurso escaso: si la reserva
+ * no se cumple, no hay nada que compensar. Cuando la escritura falla despues de
+ * reservar, la reserva se libera, de modo que un alta fallida no deja cupo vendido.
+ */
+export async function createRegistration(
+  db: Database,
+  command: CreateRegistrationCommand,
+  now: Date = new Date(),
+): Promise<RegistrationDetail> {
+  const documentNumber = normalizeDocumentNumber(command.documentNumber);
+  assertDocumentNumber(documentNumber);
+
+  const companions = normalizeCompanions(command.companions ?? [], {
+    documentType: command.documentType,
+    documentNumber,
+  });
+
+  // Evento y sede se piden a sus servicios: el 404 llega con el codigo del dueno.
+  const view = await getParticipationDetail(db, command.participationId);
+  const event = await getEventById(db, view.participation.eventId);
+
+  assertEventPublished(event.status);
+  assertParticipationAcceptsRegistrations(view.participation.status, view.establishment.status);
+  assertRegistrationWindow(effectiveRegistrationWindow(event, view.participation), now);
+
+  // El indice unico parcial es la defensa real ante dos altas simultaneas del mismo
+  // documento; esta comprobacion evita gastar la reserva de cupo en un duplicado.
+  const duplicate = await findActiveRegistrationByDocument(
+    db,
+    view.participation.id,
+    command.documentType,
+    documentNumber,
+  );
+
+  if (duplicate !== null) {
+    throw AppError.conflict(
+      ErrorCode.DUPLICATE_REGISTRATION,
+      'Ya existe un registro con ese documento en este establecimiento.',
+      { details: { registrationId: duplicate.id } },
+    );
+  }
+
+  if (!(await reserveTitularSlot(db, view.participation.id, now))) {
+    throw AppError.conflict(
+      ErrorCode.TITULAR_CAPACITY_EXCEEDED,

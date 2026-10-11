@@ -68,6 +68,7 @@ async function seedCatalog(status: 'draft' | 'published' = 'published'): Promise
     slug: 'evento-base',
     name: 'Evento base',
     status,
+    capacity: 10_000,
   });
   const establishment = await establishments.insertEstablishment(db, {
     code: 'sede-norte',
@@ -99,23 +100,42 @@ describe('autorizacion del catalogo de participaciones', () => {
     await expect(errorCodeOf(response)).resolves.toBe('UNAUTHENTICATED');
   });
 
-  it('deja leer al operador pero no escribir', async () => {
+  it('deja leer al operador y escribir solo en eventos propios', async () => {
     const operator = await seedOperator();
+    const foreign = await seedCatalog();
+    const ownEvent = await events.insertEvent(db, {
+      slug: 'evento-propio',
+      name: 'Evento propio',
+      status: 'published',
+      capacity: 10_000,
+      createdBy: operator.id,
+    });
 
     const list = await api('/participations', operator.cookie);
     expect(list.status).toBe(200);
 
-    const create = await api('/participations', operator.cookie, {
+    const foreignWrite = await api('/participations', operator.cookie, {
       method: 'POST',
       body: JSON.stringify({
-        eventId: 'x',
-        establishmentId: 'y',
+        eventId: foreign.event.id,
+        establishmentId: foreign.establishment.id,
         titularCapacity: 1,
         companionCapacity: 0,
       }),
     });
-    expect(create.status).toBe(403);
-    await expect(errorCodeOf(create)).resolves.toBe('FORBIDDEN');
+    expect(foreignWrite.status).toBe(403);
+    await expect(errorCodeOf(foreignWrite)).resolves.toBe('FORBIDDEN');
+
+    const ownWrite = await api('/participations', operator.cookie, {
+      method: 'POST',
+      body: JSON.stringify({
+        eventId: ownEvent.id,
+        establishmentId: foreign.establishment.id,
+        titularCapacity: 1,
+        companionCapacity: 0,
+      }),
+    });
+    expect(ownWrite.status).toBe(201);
   });
 });
 
@@ -196,6 +216,33 @@ describe('POST /participations', () => {
 
     expect(response.status).toBe(409);
     await expect(errorCodeOf(response)).resolves.toBe('PARTICIPATION_ALREADY_EXISTS');
+  });
+
+  it('rechaza cupos de sede que superan el cupo general del evento', async () => {
+    const admin = await seedAdmin();
+    const event = await events.insertEvent(db, {
+      slug: 'aforo-chico',
+      name: 'Aforo chico',
+      status: 'published',
+      capacity: 10,
+    });
+    const establishment = await establishments.insertEstablishment(db, {
+      code: 'sede-norte',
+      name: 'Sede Norte',
+    });
+
+    const response = await api('/participations', admin.cookie, {
+      method: 'POST',
+      body: JSON.stringify({
+        eventId: event.id,
+        establishmentId: establishment.id,
+        titularCapacity: 8,
+        companionCapacity: 5,
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    await expect(errorCodeOf(response)).resolves.toBe('EVENT_CAPACITY_EXCEEDED');
   });
 
   it('rechaza una sede inactiva', async () => {

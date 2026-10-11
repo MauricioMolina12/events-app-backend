@@ -1,0 +1,1655 @@
+
+> events@0.1.0 pretest
+> npm run cf-typegen
+
+
+> events@0.1.0 cf-typegen
+> wrangler types --env-interface CloudflareBindings
+
+
+ ⛅️ wrangler 4.147.0
+────────────────────
+Generating project types...
+
+interface __BaseEnv_CloudflareBindings {
+	DB: D1Database;
+	ENVIRONMENT: "production" | "local";
+	CORS_ORIGINS: "https://app.example.com" | "http://localhost:5173,http://localhost:8788";
+	PBKDF2_ITERATIONS: "210000";
+	SESSION_TTL_HOURS: "12";
+	SESSION_COOKIE_NAME: "events_session";
+	AUTH_MAX_FAILED_ATTEMPTS: "5";
+	AUTH_LOCKOUT_MINUTES: "15";
+}
+declare namespace Cloudflare {
+	interface GlobalProps {
+		mainModule: typeof import("./src/index");
+	}
+	interface ProductionEnv {
+		DB: D1Database;
+		ENVIRONMENT: "production";
+		CORS_ORIGINS: "https://app.example.com";
+		PBKDF2_ITERATIONS: "210000";
+		SESSION_TTL_HOURS: "12";
+		SESSION_COOKIE_NAME: "events_session";
+		AUTH_MAX_FAILED_ATTEMPTS: "5";
+		AUTH_LOCKOUT_MINUTES: "15";
+	}
+	interface Env extends __BaseEnv_CloudflareBindings {}
+}
+interface CloudflareBindings extends __BaseEnv_CloudflareBindings {}
+type StringifyValues<EnvType extends Record<string, unknown>> = {
+	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
+};
+declare namespace NodeJS {
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "ENVIRONMENT" | "CORS_ORIGINS" | "PBKDF2_ITERATIONS" | "SESSION_TTL_HOURS" | "SESSION_COOKIE_NAME" | "AUTH_MAX_FAILED_ATTEMPTS" | "AUTH_LOCKOUT_MINUTES">> {}
+}
+
+Generating runtime types...
+
+Runtime types generated.
+
+
+✨ Types written to worker-configuration.d.ts
+
+📖 Read about runtime types
+https://developers.cloudflare.com/workers/languages/typescript/#generate-types
+📣 Remember to rerun 'wrangler types' after you change your wrangler.jsonc file.
+
+
+> events@0.1.0 test
+> vitest run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90mC:/Users/DELL/Desktop/events[39m
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mautorizacion del modulo de usuarios[2m > [22m[2mexige una sesion activa
+[22m[39m{"level":"warn","msg":"request_error","requestId":"1420fa6b-e73c-4d58-aff5-26be39f5d4b3","method":"GET","path":"/api/v1/users","status":401,"code":"UNAUTHENTICATED","error":{"name":"AppError","code":"UNAUTHENTICATED","message":"Se requiere una sesion activa para realizar esta operacion."}}
+
+[90mstderr[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mautorizacion del catalogo de sedes[2m > [22m[2mexige una sesion activa
+[22m[39m{"level":"warn","msg":"request_error","requestId":"30da7532-3ef7-4528-9228-fe3ee11015a6","method":"GET","path":"/api/v1/establishments","status":401,"code":"UNAUTHENTICATED","error":{"name":"AppError","code":"UNAUTHENTICATED","message":"Se requiere una sesion activa para realizar esta operacion."}}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mautorizacion del catalogo de participaciones[2m > [22m[2mexige una sesion activa
+[22m[39m{"level":"warn","msg":"request_error","requestId":"f4642ceb-9c37-4cfa-af9c-3e850bb0a318","method":"GET","path":"/api/v1/participations","status":401,"code":"UNAUTHENTICATED","error":{"name":"AppError","code":"UNAUTHENTICATED","message":"Se requiere una sesion activa para realizar esta operacion."}}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mautorizacion del catalogo de eventos[2m > [22m[2mexige una sesion activa
+[22m[39m{"level":"warn","msg":"request_error","requestId":"dcb90f57-d9cd-4383-9d72-19288f4e574c","method":"GET","path":"/api/v1/events","status":401,"code":"UNAUTHENTICATED","error":{"name":"AppError","code":"UNAUTHENTICATED","message":"Se requiere una sesion activa para realizar esta operacion."}}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mautorizacion del modulo de usuarios[2m > [22m[2mexige una sesion activa
+[22m[39m{"level":"warn","msg":"http_request","requestId":"1420fa6b-e73c-4d58-aff5-26be39f5d4b3","method":"GET","path":"/api/v1/users","status":401,"durationMs":222}
+
+[90mstderr[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mautorizacion del catalogo de sedes[2m > [22m[2mexige una sesion activa
+[22m[39m{"level":"warn","msg":"http_request","requestId":"30da7532-3ef7-4528-9228-fe3ee11015a6","method":"GET","path":"/api/v1/establishments","status":401,"durationMs":218}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mautorizacion del catalogo de participaciones[2m > [22m[2mexige una sesion activa
+[22m[39m{"level":"warn","msg":"http_request","requestId":"f4642ceb-9c37-4cfa-af9c-3e850bb0a318","method":"GET","path":"/api/v1/participations","status":401,"durationMs":223}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mautorizacion del catalogo de eventos[2m > [22m[2mexige una sesion activa
+[22m[39m{"level":"warn","msg":"http_request","requestId":"dcb90f57-d9cd-4383-9d72-19288f4e574c","method":"GET","path":"/api/v1/events","status":401,"durationMs":221}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mautorizacion de los registros[2m > [22m[2mexige una sesion activa para la mesa de registro
+[22m[39m{"level":"warn","msg":"request_error","requestId":"d467b230-5a1b-4aac-8dc8-aa4032ea3385","method":"GET","path":"/api/v1/registrations","status":401,"code":"UNAUTHENTICATED","error":{"name":"AppError","code":"UNAUTHENTICATED","message":"Se requiere una sesion activa para realizar esta operacion."}}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mautorizacion de los registros[2m > [22m[2mexige una sesion activa para la mesa de registro
+[22m[39m{"level":"warn","msg":"http_request","requestId":"d467b230-5a1b-4aac-8dc8-aa4032ea3385","method":"GET","path":"/api/v1/registrations","status":401,"durationMs":232}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mautorizacion del modulo de usuarios[2m > [22m[2mreserva el listado y el alta a los administradores
+[22m[39m{"level":"info","msg":"http_request","requestId":"1008370d-c73f-4b2f-b6b6-13e2fccb82b8","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":51}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mautorizacion del catalogo de eventos[2m > [22m[2mdeja leer al operador pero no escribir
+[22m[39m{"level":"info","msg":"http_request","requestId":"4955dff8-b782-4733-8408-f485e3d6f9e5","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":52}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mautorizacion del catalogo de sedes[2m > [22m[2mdeja leer al operador pero no escribir
+[22m[39m{"level":"info","msg":"http_request","requestId":"c717bd7f-3577-478b-8873-79cf29d331c0","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":48}
+
+[90mstdout[2m | tests/integration/public.routes.test.ts[2m > [22m[2mcatalogo publico de eventos[2m > [22m[2mno pide sesion y solo ofrece eventos publicados
+[22m[39m{"level":"info","msg":"http_request","requestId":"1159e820-0946-453e-bb83-591bb8f39b1f","method":"GET","path":"/api/v1/public/events","status":200,"durationMs":75}
+
+[90mstdout[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/login[2m > [22m[2memite una cookie HttpOnly y devuelve el usuario sin credenciales
+[22m[39m{"level":"info","msg":"http_request","requestId":"77cb0fa1-fe17-4e14-8bcd-899749334756","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":109}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mautorizacion del modulo de usuarios[2m > [22m[2mreserva el listado y el alta a los administradores
+[22m[39m{"level":"warn","msg":"request_error","requestId":"1841d022-916f-4a32-967b-d13af1bf18a7","method":"GET","path":"/api/v1/users","status":403,"code":"FORBIDDEN","error":{"name":"AppError","code":"FORBIDDEN","message":"Tu rol no permite realizar esta operacion."}}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mautorizacion del modulo de usuarios[2m > [22m[2mreserva el listado y el alta a los administradores
+[22m[39m{"level":"warn","msg":"http_request","requestId":"1841d022-916f-4a32-967b-d13af1bf18a7","method":"GET","path":"/api/v1/users","status":403,"durationMs":19}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mautorizacion del catalogo de participaciones[2m > [22m[2mdeja leer al operador pero no escribir
+[22m[39m{"level":"info","msg":"http_request","requestId":"fe5753b3-4d1f-4741-be3b-539053942c51","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":42}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mautorizacion del catalogo de sedes[2m > [22m[2mdeja leer al operador pero no escribir
+[22m[39m{"level":"info","msg":"http_request","requestId":"4282664e-5e03-4e21-8499-db28a83b8f36","method":"GET","path":"/api/v1/establishments","status":200,"durationMs":29}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mautorizacion del catalogo de eventos[2m > [22m[2mdeja leer al operador pero no escribir
+[22m[39m{"level":"info","msg":"http_request","requestId":"7b89342d-df62-422b-9c18-f0201361f6aa","method":"GET","path":"/api/v1/events","status":200,"durationMs":28}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mautorizacion del catalogo de participaciones[2m > [22m[2mdeja leer al operador pero no escribir
+[22m[39m{"level":"info","msg":"http_request","requestId":"3e2b7915-878d-4e34-95ab-0cea9724a7ba","method":"GET","path":"/api/v1/participations","status":200,"durationMs":29}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mautorizacion del modulo de usuarios[2m > [22m[2mreserva el listado y el alta a los administradores
+[22m[39m{"level":"warn","msg":"request_error","requestId":"404b965e-05ec-4bec-9534-a3e15420af03","method":"POST","path":"/api/v1/users","status":403,"code":"FORBIDDEN","error":{"name":"AppError","code":"FORBIDDEN","message":"Tu rol no permite realizar esta operacion."}}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mautorizacion de los registros[2m > [22m[2mexige una sesion activa para la mesa de registro
+[22m[39m{"level":"warn","msg":"request_error","requestId":"f2039db9-58d5-4e18-be19-40778dea520e","method":"POST","path":"/api/v1/registrations","status":401,"code":"UNAUTHENTICATED","error":{"name":"AppError","code":"UNAUTHENTICATED","message":"Se requiere una sesion activa para realizar esta operacion."}}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mautorizacion del catalogo de eventos[2m > [22m[2mdeja leer al operador pero no escribir
+[22m[39m{"level":"warn","msg":"request_error","requestId":"3270af47-d28f-4d7a-a9a3-31150873437c","method":"POST","path":"/api/v1/events","status":403,"code":"FORBIDDEN","error":{"name":"AppError","code":"FORBIDDEN","message":"Tu rol no permite realizar esta operacion."}}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mautorizacion del modulo de usuarios[2m > [22m[2mreserva el listado y el alta a los administradores
+[22m[39m{"level":"warn","msg":"http_request","requestId":"404b965e-05ec-4bec-9534-a3e15420af03","method":"POST","path":"/api/v1/users","status":403,"durationMs":16}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mautorizacion de los registros[2m > [22m[2mexige una sesion activa para la mesa de registro
+[22m[39m{"level":"warn","msg":"http_request","requestId":"f2039db9-58d5-4e18-be19-40778dea520e","method":"POST","path":"/api/v1/registrations","status":401,"durationMs":5}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mautorizacion del catalogo de eventos[2m > [22m[2mdeja leer al operador pero no escribir
+[22m[39m{"level":"warn","msg":"http_request","requestId":"3270af47-d28f-4d7a-a9a3-31150873437c","method":"POST","path":"/api/v1/events","status":403,"durationMs":14}
+
+[90mstdout[2m | tests/integration/public.routes.test.ts[2m > [22m[2mcatalogo publico de eventos[2m > [22m[2mresuelve la ficha por slug o por identificador
+[22m[39m{"level":"info","msg":"http_request","requestId":"75b12343-6ba3-4472-b7d8-0495cdd34ba0","method":"GET","path":"/api/v1/public/events/feria","status":200,"durationMs":30}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mautorizacion del catalogo de participaciones[2m > [22m[2mdeja leer al operador pero no escribir
+[22m[39m{"level":"warn","msg":"request_error","requestId":"f22e368f-84ce-4694-97d7-1651af015055","method":"POST","path":"/api/v1/participations","status":403,"code":"FORBIDDEN","error":{"name":"AppError","code":"FORBIDDEN","message":"Tu rol no permite realizar esta operacion."}}
+
+[90mstdout[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/login[2m > [22m[2mpersiste solo el hash del token
+[22m[39m{"level":"info","msg":"http_request","requestId":"10f24a12-7cd5-4c9f-8c52-329fce867be2","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":33}
+
+[90mstderr[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mautorizacion del catalogo de sedes[2m > [22m[2mdeja leer al operador pero no escribir
+[22m[39m{"level":"warn","msg":"request_error","requestId":"c34f789c-a60f-41a3-ae66-bd8499bf579a","method":"POST","path":"/api/v1/establishments","status":403,"code":"FORBIDDEN","error":{"name":"AppError","code":"FORBIDDEN","message":"Tu rol no permite realizar esta operacion."}}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mautorizacion del catalogo de participaciones[2m > [22m[2mdeja leer al operador pero no escribir
+[22m[39m{"level":"warn","msg":"http_request","requestId":"f22e368f-84ce-4694-97d7-1651af015055","method":"POST","path":"/api/v1/participations","status":403,"durationMs":15}
+
+[90mstderr[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mautorizacion del catalogo de sedes[2m > [22m[2mdeja leer al operador pero no escribir
+[22m[39m{"level":"warn","msg":"http_request","requestId":"c34f789c-a60f-41a3-ae66-bd8499bf579a","method":"POST","path":"/api/v1/establishments","status":403,"durationMs":14}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPOST /events[2m > [22m[2mcrea el evento en borrador con las fechas en ISO-8601 UTC
+[22m[39m{"level":"info","msg":"http_request","requestId":"190f553f-673f-4f48-8737-8c33679ce986","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":32}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mGET /users[2m > [22m[2mlista las cuentas con el total de las filas filtradas
+[22m[39m{"level":"info","msg":"http_request","requestId":"fd377f88-ea97-47f3-95e9-08766d97ae2b","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":34}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mPOST /establishments[2m > [22m[2mcrea la sede activa
+[22m[39m{"level":"info","msg":"http_request","requestId":"0b40f810-7ae3-4f07-a3ff-69b2053b5f1c","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":40}
+
+[90mstdout[2m | tests/integration/public.routes.test.ts[2m > [22m[2mcatalogo publico de eventos[2m > [22m[2mresuelve la ficha por slug o por identificador
+[22m[39m{"level":"info","msg":"http_request","requestId":"424d2478-2581-4028-922b-03a2b9a6d1ef","method":"GET","path":"/api/v1/public/events/2defc6b0-2ccf-4243-bbd6-4071ffb6bf60","status":200,"durationMs":19}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/login[2m > [22m[2mresponde 401 con INVALID_CREDENTIALS y registra el intento
+[22m[39m{"level":"warn","msg":"request_error","requestId":"3da9c8d4-6139-4bb4-a838-ea78166c17b5","method":"POST","path":"/api/v1/auth/login","status":401,"code":"INVALID_CREDENTIALS","error":{"name":"AppError","code":"INVALID_CREDENTIALS","message":"Email o contrasena incorrectos."}}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/login[2m > [22m[2mresponde 401 con INVALID_CREDENTIALS y registra el intento
+[22m[39m{"level":"warn","msg":"http_request","requestId":"3da9c8d4-6139-4bb4-a838-ea78166c17b5","method":"POST","path":"/api/v1/auth/login","status":401,"durationMs":32}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPOST /participations[2m > [22m[2mcrea la participacion con la sede resuelta y el cupo disponible
+[22m[39m{"level":"info","msg":"http_request","requestId":"d7c556b1-1cd2-47e2-b645-41c8f4886c77","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":43}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPOST /events[2m > [22m[2mcrea el evento en borrador con las fechas en ISO-8601 UTC
+[22m[39m{"level":"info","msg":"http_request","requestId":"7fa99130-38ec-4f55-9429-326f45bbbb4c","method":"POST","path":"/api/v1/events","status":201,"durationMs":23}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2mcatalogo publico de eventos[2m > [22m[2mun evento no publicado responde 404 igual que uno inexistente
+[22m[39m{"level":"warn","msg":"request_error","requestId":"6064190a-871c-4629-9620-79d311b39383","method":"GET","path":"/api/v1/public/events/borrador","status":404,"code":"EVENT_NOT_FOUND","error":{"name":"AppError","code":"EVENT_NOT_FOUND","message":"El evento no existe o no esta publicado."}}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mGET /users[2m > [22m[2mlista las cuentas con el total de las filas filtradas
+[22m[39m{"level":"info","msg":"http_request","requestId":"b808957a-af11-4386-afb9-f406070b0cb4","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":30}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2mcatalogo publico de eventos[2m > [22m[2mun evento no publicado responde 404 igual que uno inexistente
+[22m[39m{"level":"warn","msg":"http_request","requestId":"6064190a-871c-4629-9620-79d311b39383","method":"GET","path":"/api/v1/public/events/borrador","status":404,"durationMs":15}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mautorizacion de los registros[2m > [22m[2mdeja al operador atender y buscar dentro de la jornada
+[22m[39m{"level":"info","msg":"http_request","requestId":"24669e77-97fd-4263-a86f-895410255730","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":56}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mPOST /establishments[2m > [22m[2mcrea la sede activa
+[22m[39m{"level":"info","msg":"http_request","requestId":"03b24254-e42a-4ae3-9300-6660d8a8dc75","method":"POST","path":"/api/v1/establishments","status":201,"durationMs":21}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2mcatalogo publico de eventos[2m > [22m[2mun evento no publicado responde 404 igual que uno inexistente
+[22m[39m{"level":"warn","msg":"request_error","requestId":"56062242-aade-4cf0-8d1f-611980141bb5","method":"GET","path":"/api/v1/public/events/cerrado","status":404,"code":"EVENT_NOT_FOUND","error":{"name":"AppError","code":"EVENT_NOT_FOUND","message":"El evento no existe o no esta publicado."}}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPOST /participations[2m > [22m[2mcrea la participacion con la sede resuelta y el cupo disponible
+[22m[39m{"level":"info","msg":"http_request","requestId":"6c1618e4-fa1b-4150-8962-720bf446388a","method":"POST","path":"/api/v1/participations","status":201,"durationMs":33}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPOST /events[2m > [22m[2mrechaza un slug que no cumple el formato
+[22m[39m{"level":"info","msg":"http_request","requestId":"e678fb80-41a1-404a-9979-86032ea480de","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":35}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2mcatalogo publico de eventos[2m > [22m[2mun evento no publicado responde 404 igual que uno inexistente
+[22m[39m{"level":"warn","msg":"http_request","requestId":"56062242-aade-4cf0-8d1f-611980141bb5","method":"GET","path":"/api/v1/public/events/cerrado","status":404,"durationMs":17}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mGET /users[2m > [22m[2mlista las cuentas con el total de las filas filtradas
+[22m[39m{"level":"info","msg":"http_request","requestId":"e0b3a660-f482-4d6b-8dfc-268506f6da91","method":"GET","path":"/api/v1/users","status":200,"durationMs":26}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mPOST /establishments[2m > [22m[2mrechaza un codigo que no cumple el formato
+[22m[39m{"level":"info","msg":"http_request","requestId":"f70c1794-69b9-4748-87a9-0dd9ec6ab1f2","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":41}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2mcatalogo publico de eventos[2m > [22m[2mun evento no publicado responde 404 igual que uno inexistente
+[22m[39m{"level":"warn","msg":"request_error","requestId":"74baea48-d331-425b-b5c7-b7fc46998154","method":"GET","path":"/api/v1/public/events/archivado","status":404,"code":"EVENT_NOT_FOUND","error":{"name":"AppError","code":"EVENT_NOT_FOUND","message":"El evento no existe o no esta publicado."}}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2mcatalogo publico de eventos[2m > [22m[2mun evento no publicado responde 404 igual que uno inexistente
+[22m[39m{"level":"warn","msg":"http_request","requestId":"74baea48-d331-425b-b5c7-b7fc46998154","method":"GET","path":"/api/v1/public/events/archivado","status":404,"durationMs":16}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPOST /events[2m > [22m[2mrechaza un slug que no cumple el formato
+[22m[39m{"level":"warn","msg":"request_error","requestId":"40fa2e79-a086-4a3a-9343-a6fb5d4e54b1","method":"POST","path":"/api/v1/events","status":422,"code":"VALIDATION_ERROR","error":{"name":"AppError","code":"VALIDATION_ERROR","message":"La solicitud no cumple el formato esperado."}}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPOST /events[2m > [22m[2mrechaza un slug que no cumple el formato
+[22m[39m{"level":"warn","msg":"http_request","requestId":"40fa2e79-a086-4a3a-9343-a6fb5d4e54b1","method":"POST","path":"/api/v1/events","status":422,"durationMs":25}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mautorizacion de los registros[2m > [22m[2mdeja al operador atender y buscar dentro de la jornada
+[22m[39m{"level":"info","msg":"http_request","requestId":"452ec21c-4277-4f60-9145-6537d1151b32","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":76}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mGET /users[2m > [22m[2mpagina con offset sin repetir filas
+[22m[39m{"level":"info","msg":"http_request","requestId":"ca07992b-e81e-4408-a1e4-ff95277caff3","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":38}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPOST /participations[2m > [22m[2mresponde EVENT_NOT_FOUND o ESTABLISHMENT_NOT_FOUND si falta algun extremo
+[22m[39m{"level":"info","msg":"http_request","requestId":"456f15ed-530d-4e45-9b28-4696d4914823","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":41}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2mcatalogo publico de eventos[2m > [22m[2mun evento no publicado responde 404 igual que uno inexistente
+[22m[39m{"level":"warn","msg":"request_error","requestId":"728cb791-cd84-43eb-b8b3-c255593a013a","method":"GET","path":"/api/v1/public/events/00000000-0000-4000-8000-000000000000","status":404,"code":"EVENT_NOT_FOUND","error":{"name":"AppError","code":"EVENT_NOT_FOUND","message":"El evento no existe."}}
+
+[90mstderr[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mPOST /establishments[2m > [22m[2mrechaza un codigo que no cumple el formato
+[22m[39m{"level":"warn","msg":"request_error","requestId":"b9029ed0-88aa-42d7-a636-df31c8d46afe","method":"POST","path":"/api/v1/establishments","status":422,"code":"VALIDATION_ERROR","error":{"name":"AppError","code":"VALIDATION_ERROR","message":"La solicitud no cumple el formato esperado."}}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2mcatalogo publico de eventos[2m > [22m[2mun evento no publicado responde 404 igual que uno inexistente
+[22m[39m{"level":"warn","msg":"http_request","requestId":"728cb791-cd84-43eb-b8b3-c255593a013a","method":"GET","path":"/api/v1/public/events/00000000-0000-4000-8000-000000000000","status":404,"durationMs":14}
+
+[90mstderr[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mPOST /establishments[2m > [22m[2mrechaza un codigo que no cumple el formato
+[22m[39m{"level":"warn","msg":"http_request","requestId":"b9029ed0-88aa-42d7-a636-df31c8d46afe","method":"POST","path":"/api/v1/establishments","status":422,"durationMs":19}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mautorizacion de los registros[2m > [22m[2mdeja al operador atender y buscar dentro de la jornada
+[22m[39m{"level":"info","msg":"http_request","requestId":"c1585309-c45a-4aed-8a47-da300e1160dd","method":"GET","path":"/api/v1/registrations","status":200,"durationMs":32}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPOST /events[2m > [22m[2mrechaza una zona horaria inexistente
+[22m[39m{"level":"info","msg":"http_request","requestId":"d7a81e07-b711-43b1-951b-eaed9eb5fa76","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":36}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPOST /participations[2m > [22m[2mresponde EVENT_NOT_FOUND o ESTABLISHMENT_NOT_FOUND si falta algun extremo
+[22m[39m{"level":"warn","msg":"request_error","requestId":"82a18331-c539-4e9b-9738-a3e4c7947fac","method":"POST","path":"/api/v1/participations","status":404,"code":"EVENT_NOT_FOUND","error":{"name":"AppError","code":"EVENT_NOT_FOUND","message":"El evento no existe."}}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mGET /users[2m > [22m[2mpagina con offset sin repetir filas
+[22m[39m{"level":"info","msg":"http_request","requestId":"c554108c-29b9-4561-9a6e-4355e96cdf79","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":39}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPOST /participations[2m > [22m[2mresponde EVENT_NOT_FOUND o ESTABLISHMENT_NOT_FOUND si falta algun extremo
+[22m[39m{"level":"warn","msg":"http_request","requestId":"82a18331-c539-4e9b-9738-a3e4c7947fac","method":"POST","path":"/api/v1/participations","status":404,"durationMs":24}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mPOST /establishments[2m > [22m[2mresponde ESTABLISHMENT_CODE_ALREADY_USED si el codigo ya existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"b0d6c193-7611-4e01-9fbf-4af80e4d5598","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":28}
+
+[90mstdout[2m | tests/integration/public.routes.test.ts[2m > [22m[2mcatalogo publico de eventos[2m > [22m[2mdeja fuera las sedes cerradas y los establecimientos apagados
+[22m[39m{"level":"info","msg":"http_request","requestId":"7abfc1b0-cba3-4473-984d-cf12cb588587","method":"GET","path":"/api/v1/public/events/feria","status":200,"durationMs":40}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPOST /participations[2m > [22m[2mresponde EVENT_NOT_FOUND o ESTABLISHMENT_NOT_FOUND si falta algun extremo
+[22m[39m{"level":"warn","msg":"request_error","requestId":"5ec25613-42b8-46e5-8b13-ad7054fd88d7","method":"POST","path":"/api/v1/participations","status":404,"code":"ESTABLISHMENT_NOT_FOUND","error":{"name":"AppError","code":"ESTABLISHMENT_NOT_FOUND","message":"El establecimiento no existe."}}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mPOST /establishments[2m > [22m[2mresponde ESTABLISHMENT_CODE_ALREADY_USED si el codigo ya existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"d2372507-241b-46ba-af13-2255c028933b","method":"POST","path":"/api/v1/establishments","status":201,"durationMs":39}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPOST /participations[2m > [22m[2mresponde EVENT_NOT_FOUND o ESTABLISHMENT_NOT_FOUND si falta algun extremo
+[22m[39m{"level":"warn","msg":"http_request","requestId":"5ec25613-42b8-46e5-8b13-ad7054fd88d7","method":"POST","path":"/api/v1/participations","status":404,"durationMs":36}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mGET /users[2m > [22m[2mpagina con offset sin repetir filas
+[22m[39m{"level":"info","msg":"http_request","requestId":"16063526-6229-4d88-aa9c-b37b7df91ec0","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":57}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mcrea el registro con sus acompanantes y normaliza el documento
+[22m[39m{"level":"info","msg":"http_request","requestId":"4d0d4cff-d4de-493d-bf7e-7f9baae41688","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":56}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mGET /users[2m > [22m[2mpagina con offset sin repetir filas
+[22m[39m{"level":"info","msg":"http_request","requestId":"d430e930-dccd-41ae-a12b-3b7e4952dede","method":"GET","path":"/api/v1/users","status":200,"durationMs":32}
+
+[90mstdout[2m | tests/integration/public.routes.test.ts[2m > [22m[2mcatalogo publico de eventos[2m > [22m[2mdevuelve un evento publicado sin sedes abiertas con la lista vacia
+[22m[39m{"level":"info","msg":"http_request","requestId":"84c88c18-0e6c-4bb7-a5c9-37869cbd1954","method":"GET","path":"/api/v1/public/events/feria","status":200,"durationMs":27}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPOST /participations[2m > [22m[2mresponde PARTICIPATION_ALREADY_EXISTS si la sede ya participa
+[22m[39m{"level":"info","msg":"http_request","requestId":"af1db62e-6223-4873-ab33-bd679e1d0212","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":37}
+
+[90mstderr[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mPOST /establishments[2m > [22m[2mresponde ESTABLISHMENT_CODE_ALREADY_USED si el codigo ya existe
+[22m[39m{"level":"warn","msg":"request_error","requestId":"436f657f-0ceb-4542-bab5-f040facb8509","method":"POST","path":"/api/v1/establishments","status":409,"code":"ESTABLISHMENT_CODE_ALREADY_USED","error":{"name":"AppError","code":"ESTABLISHMENT_CODE_ALREADY_USED","message":"Ya existe un establecimiento con ese codigo."}}
+
+[90mstderr[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mPOST /establishments[2m > [22m[2mresponde ESTABLISHMENT_CODE_ALREADY_USED si el codigo ya existe
+[22m[39m{"level":"warn","msg":"http_request","requestId":"436f657f-0ceb-4542-bab5-f040facb8509","method":"POST","path":"/api/v1/establishments","status":409,"durationMs":148}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mcrea el registro con sus acompanantes y normaliza el documento
+[22m[39m{"level":"info","msg":"http_request","requestId":"652c77a8-1551-4713-b8ac-074b5fad046c","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":138}
+
+[90mstdout[2m | tests/integration/public.routes.test.ts[2m > [22m[2mcatalogo publico de eventos[2m > [22m[2mla sede trae su cupo disponible y la ventana heredada del evento
+[22m[39m{"level":"info","msg":"http_request","requestId":"9a1306ff-3415-4fb7-b5a5-32cf9b7384d0","method":"GET","path":"/api/v1/public/events/feria","status":200,"durationMs":30}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPOST /participations[2m > [22m[2mresponde PARTICIPATION_ALREADY_EXISTS si la sede ya participa
+[22m[39m{"level":"info","msg":"http_request","requestId":"d18171f1-b193-4fe1-9f47-a990041fc38c","method":"POST","path":"/api/v1/participations","status":201,"durationMs":43}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mcrea el registro con sus acompanantes y normaliza el documento
+[22m[39m{"level":"info","msg":"http_request","requestId":"ac69253e-faab-4a4c-a6ce-224948bbf856","method":"GET","path":"/api/v1/registrations/085ede8c-0616-4344-ae9c-a0be2ed66c7e","status":200,"durationMs":33}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPOST /participations[2m > [22m[2mresponde PARTICIPATION_ALREADY_EXISTS si la sede ya participa
+[22m[39m{"level":"warn","msg":"request_error","requestId":"877e782b-0ea4-415e-b3be-183cd3d9e3fa","method":"POST","path":"/api/v1/participations","status":409,"code":"PARTICIPATION_ALREADY_EXISTS","error":{"name":"AppError","code":"PARTICIPATION_ALREADY_EXISTS","message":"El establecimiento ya participa en este evento."}}
+
+[90mstdout[2m | tests/integration/public.routes.test.ts[2m > [22m[2mcatalogo publico de eventos[2m > [22m[2mla sede trae su cupo disponible y la ventana heredada del evento
+[22m[39m{"level":"info","msg":"http_request","requestId":"c245d5a5-3c0d-4efb-b419-0f833ef55851","method":"POST","path":"/api/v1/public/registrations","status":201,"durationMs":83}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mGET /users[2m > [22m[2mpagina con offset sin repetir filas
+[22m[39m{"level":"info","msg":"http_request","requestId":"49de2fce-0f59-4f66-acb6-25e7cd3f7f23","method":"GET","path":"/api/v1/users","status":200,"durationMs":287}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/login[2m > [22m[2mno distingue un email inexistente de una contrasena incorrecta
+[22m[39m{"level":"warn","msg":"request_error","requestId":"b0d3771e-d41c-4c05-a8e5-8b463766581f","method":"POST","path":"/api/v1/auth/login","status":401,"code":"INVALID_CREDENTIALS","error":{"name":"AppError","code":"INVALID_CREDENTIALS","message":"Email o contrasena incorrectos."}}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPOST /participations[2m > [22m[2mresponde PARTICIPATION_ALREADY_EXISTS si la sede ya participa
+[22m[39m{"level":"warn","msg":"http_request","requestId":"877e782b-0ea4-415e-b3be-183cd3d9e3fa","method":"POST","path":"/api/v1/participations","status":409,"durationMs":50}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mGET /establishments[2m > [22m[2mlista con filtros, busqueda y paginacion
+[22m[39m{"level":"info","msg":"http_request","requestId":"2be844c1-ad9a-4ad0-90c5-d1b55bec462b","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":34}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/login[2m > [22m[2mno distingue un email inexistente de una contrasena incorrecta
+[22m[39m{"level":"warn","msg":"http_request","requestId":"b0d3771e-d41c-4c05-a8e5-8b463766581f","method":"POST","path":"/api/v1/auth/login","status":401,"durationMs":781}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPOST /events[2m > [22m[2mrechaza una zona horaria inexistente
+[22m[39m{"level":"warn","msg":"request_error","requestId":"828c7cea-02a4-4eeb-a267-b68a4acd3429","method":"POST","path":"/api/v1/events","status":422,"code":"VALIDATION_ERROR","error":{"name":"AppError","code":"VALIDATION_ERROR","message":"La zona horaria \"Marte/Olympus\" no existe."}}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPOST /events[2m > [22m[2mrechaza una zona horaria inexistente
+[22m[39m{"level":"warn","msg":"http_request","requestId":"828c7cea-02a4-4eeb-a267-b68a4acd3429","method":"POST","path":"/api/v1/events","status":422,"durationMs":639}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mGET /users[2m > [22m[2mfiltra por rol, estado y texto libre
+[22m[39m{"level":"info","msg":"http_request","requestId":"5dd7e0f0-5ffd-4274-b4d5-cea79c6f910e","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":34}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mreserva el cupo antes de escribir: el ultimo lugar es de uno solo
+[22m[39m{"level":"info","msg":"http_request","requestId":"179f36ec-e88e-4324-9deb-9f3af292b3fc","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":32}
+
+[90mstdout[2m | tests/integration/public.routes.test.ts[2m > [22m[2mcatalogo publico de eventos[2m > [22m[2mla sede trae su cupo disponible y la ventana heredada del evento
+[22m[39m{"level":"info","msg":"http_request","requestId":"33cb4402-5427-46b1-a769-110f77caab39","method":"GET","path":"/api/v1/public/events/feria","status":200,"durationMs":79}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mGET /establishments[2m > [22m[2mlista con filtros, busqueda y paginacion
+[22m[39m{"level":"info","msg":"http_request","requestId":"fa726358-cc58-43e8-9e72-f3b68911a0bb","method":"POST","path":"/api/v1/establishments","status":201,"durationMs":57}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/login[2m > [22m[2mresponde 401 con ACCOUNT_DISABLED a una cuenta desactivada
+[22m[39m{"level":"warn","msg":"request_error","requestId":"85ba0b3d-4f03-4ed5-a3a5-affe97eb0816","method":"POST","path":"/api/v1/auth/login","status":401,"code":"ACCOUNT_DISABLED","error":{"name":"AppError","code":"ACCOUNT_DISABLED","message":"La cuenta esta desactivada. Solicita acceso a un administrador."}}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/login[2m > [22m[2mresponde 401 con ACCOUNT_DISABLED a una cuenta desactivada
+[22m[39m{"level":"warn","msg":"http_request","requestId":"85ba0b3d-4f03-4ed5-a3a5-affe97eb0816","method":"POST","path":"/api/v1/auth/login","status":401,"durationMs":18}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPOST /participations[2m > [22m[2mrechaza una sede inactiva
+[22m[39m{"level":"info","msg":"http_request","requestId":"a3c87fae-37f1-46f9-99f7-2c3a08c1ec4e","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":30}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPOST /events[2m > [22m[2mrechaza un cierre de registro anterior a su apertura
+[22m[39m{"level":"info","msg":"http_request","requestId":"b20ff097-5b65-41a3-a5d3-09e7d2b5b615","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":33}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mGET /users[2m > [22m[2mfiltra por rol, estado y texto libre
+[22m[39m{"level":"info","msg":"http_request","requestId":"7051c30a-4f29-4ee6-81db-2dd15e5f7ef2","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":34}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mGET /establishments[2m > [22m[2mlista con filtros, busqueda y paginacion
+[22m[39m{"level":"info","msg":"http_request","requestId":"4569d312-8fd5-45bf-86fb-ea0d6012331f","method":"POST","path":"/api/v1/establishments","status":201,"durationMs":20}
+
+[90mstdout[2m | tests/integration/public.routes.test.ts[2m > [22m[2mcatalogo publico de eventos[2m > [22m[2mregistrationOpen es falso cuando el evento ya cerro su ventana
+[22m[39m{"level":"info","msg":"http_request","requestId":"e8cac80b-d786-4dd6-8d46-cf503cfa5192","method":"GET","path":"/api/v1/public/events/feria","status":200,"durationMs":27}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mGET /establishments[2m > [22m[2mlista con filtros, busqueda y paginacion
+[22m[39m{"level":"info","msg":"http_request","requestId":"7f3c3fbf-1ded-44f9-8689-582c322f08e8","method":"POST","path":"/api/v1/establishments","status":201,"durationMs":26}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/login[2m > [22m[2mbloquea la cuenta de forma progresiva tras varios intentos fallidos
+[22m[39m{"level":"warn","msg":"request_error","requestId":"37e1c96d-8b80-4b7d-80f9-11fcfee7de63","method":"POST","path":"/api/v1/auth/login","status":401,"code":"INVALID_CREDENTIALS","error":{"name":"AppError","code":"INVALID_CREDENTIALS","message":"Email o contrasena incorrectos."}}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/login[2m > [22m[2mbloquea la cuenta de forma progresiva tras varios intentos fallidos
+[22m[39m{"level":"warn","msg":"http_request","requestId":"37e1c96d-8b80-4b7d-80f9-11fcfee7de63","method":"POST","path":"/api/v1/auth/login","status":401,"durationMs":52}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mGET /users[2m > [22m[2mfiltra por rol, estado y texto libre
+[22m[39m{"level":"info","msg":"http_request","requestId":"2c1d6d1b-5532-4eef-b3a9-9777eb038eee","method":"GET","path":"/api/v1/users","status":200,"durationMs":32}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPOST /events[2m > [22m[2mrechaza un cierre de registro anterior a su apertura
+[22m[39m{"level":"warn","msg":"request_error","requestId":"cc90379a-7db5-4fa6-906c-e31f1d063bf6","method":"POST","path":"/api/v1/events","status":422,"code":"VALIDATION_ERROR","error":{"name":"AppError","code":"VALIDATION_ERROR","message":"El campo \"registrationClosesAt\" no puede ser anterior al inicio de la ventana."}}
+
+[90mstdout[2m | tests/integration/public.routes.test.ts[2m > [22m[2mcatalogo publico de eventos[2m > [22m[2mla sede puede abrir su propia ventana sobre un evento ya cerrado
+[22m[39m{"level":"info","msg":"http_request","requestId":"f62c860a-ce38-4bd3-8116-d3afd27bf032","method":"GET","path":"/api/v1/public/events/feria","status":200,"durationMs":27}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPOST /events[2m > [22m[2mrechaza un cierre de registro anterior a su apertura
+[22m[39m{"level":"warn","msg":"http_request","requestId":"cc90379a-7db5-4fa6-906c-e31f1d063bf6","method":"POST","path":"/api/v1/events","status":422,"durationMs":60}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mGET /establishments[2m > [22m[2mlista con filtros, busqueda y paginacion
+[22m[39m{"level":"info","msg":"http_request","requestId":"ece63ed9-cbb5-468e-8b97-6d92b82d4ad9","method":"GET","path":"/api/v1/establishments","status":200,"durationMs":26}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPOST /participations[2m > [22m[2mrechaza una sede inactiva
+[22m[39m{"level":"warn","msg":"request_error","requestId":"4a7fee00-e82b-468a-8e8f-494ddc947880","method":"POST","path":"/api/v1/participations","status":422,"code":"VALIDATION_ERROR","error":{"name":"AppError","code":"VALIDATION_ERROR","message":"El establecimiento esta inactivo."}}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/login[2m > [22m[2mbloquea la cuenta de forma progresiva tras varios intentos fallidos
+[22m[39m{"level":"warn","msg":"request_error","requestId":"5e6a6d40-9e38-4ef1-87fd-3d55f522842c","method":"POST","path":"/api/v1/auth/login","status":401,"code":"INVALID_CREDENTIALS","error":{"name":"AppError","code":"INVALID_CREDENTIALS","message":"Email o contrasena incorrectos."}}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPOST /participations[2m > [22m[2mrechaza una sede inactiva
+[22m[39m{"level":"warn","msg":"http_request","requestId":"4a7fee00-e82b-468a-8e8f-494ddc947880","method":"POST","path":"/api/v1/participations","status":422,"durationMs":109}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/login[2m > [22m[2mbloquea la cuenta de forma progresiva tras varios intentos fallidos
+[22m[39m{"level":"warn","msg":"http_request","requestId":"5e6a6d40-9e38-4ef1-87fd-3d55f522842c","method":"POST","path":"/api/v1/auth/login","status":401,"durationMs":30}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mreserva el cupo antes de escribir: el ultimo lugar es de uno solo
+[22m[39m{"level":"info","msg":"http_request","requestId":"5fc8b5ba-90e6-426e-9462-c793b9cd2617","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":210}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mGET /users[2m > [22m[2mfiltra por rol, estado y texto libre
+[22m[39m{"level":"info","msg":"http_request","requestId":"a600c842-adbb-40f3-8fdc-e1f3b47b4a74","method":"GET","path":"/api/v1/users","status":200,"durationMs":30}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mGET /establishments[2m > [22m[2mlista con filtros, busqueda y paginacion
+[22m[39m{"level":"info","msg":"http_request","requestId":"eec0d923-8c3d-418c-b081-d2b670408443","method":"GET","path":"/api/v1/establishments","status":200,"durationMs":25}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/login[2m > [22m[2mbloquea la cuenta de forma progresiva tras varios intentos fallidos
+[22m[39m{"level":"warn","msg":"request_error","requestId":"0f5fa12c-233d-4a0c-bb0e-5e75534e20b6","method":"POST","path":"/api/v1/auth/login","status":401,"code":"INVALID_CREDENTIALS","error":{"name":"AppError","code":"INVALID_CREDENTIALS","message":"Email o contrasena incorrectos."}}
+
+[90mstdout[2m | tests/integration/public.routes.test.ts[2m > [22m[2mcatalogo publico de eventos[2m > [22m[2mla sede puede abrir su propia ventana sobre un evento ya cerrado
+[22m[39m{"level":"info","msg":"http_request","requestId":"a896bc61-aac6-4a16-86cf-877b26a77621","method":"POST","path":"/api/v1/public/registrations","status":201,"durationMs":43}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/login[2m > [22m[2mbloquea la cuenta de forma progresiva tras varios intentos fallidos
+[22m[39m{"level":"warn","msg":"http_request","requestId":"0f5fa12c-233d-4a0c-bb0e-5e75534e20b6","method":"POST","path":"/api/v1/auth/login","status":401,"durationMs":27}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mGET /users[2m > [22m[2mfiltra por rol, estado y texto libre
+[22m[39m{"level":"info","msg":"http_request","requestId":"ebd2d378-7220-4f2c-8392-aab1ff17a11d","method":"GET","path":"/api/v1/users","status":200,"durationMs":35}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPOST /events[2m > [22m[2mresponde EVENT_SLUG_ALREADY_USED si el slug ya existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"1de38bba-1f93-46c6-a9b1-2a677a53943f","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":32}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mreserva el cupo antes de escribir: el ultimo lugar es de uno solo
+[22m[39m{"level":"warn","msg":"request_error","requestId":"9460b6e1-fd96-4f12-ad97-5269962b7524","method":"POST","path":"/api/v1/registrations","status":409,"code":"TITULAR_CAPACITY_EXCEEDED","error":{"name":"AppError","code":"TITULAR_CAPACITY_EXCEEDED","message":"La sede no admite mas titulares: se cerro entre la consulta y la reserva, o el cupo esta completo."}}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mreserva el cupo antes de escribir: el ultimo lugar es de uno solo
+[22m[39m{"level":"warn","msg":"http_request","requestId":"9460b6e1-fd96-4f12-ad97-5269962b7524","method":"POST","path":"/api/v1/registrations","status":409,"durationMs":54}
+
+[90mstdout[2m | tests/integration/public.routes.test.ts[2m > [22m[2mcatalogo publico de eventos[2m > [22m[2mfiltra por texto libre y acota la pagina
+[22m[39m{"level":"info","msg":"http_request","requestId":"b85ab022-7eaa-4194-9a0e-031ff715ab16","method":"GET","path":"/api/v1/public/events","status":200,"durationMs":25}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mGET /establishments[2m > [22m[2mlista con filtros, busqueda y paginacion
+[22m[39m{"level":"info","msg":"http_request","requestId":"d9f0b6f7-e263-44c4-8083-0fe87de50ec3","method":"GET","path":"/api/v1/establishments","status":200,"durationMs":35}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/login[2m > [22m[2mbloquea la cuenta de forma progresiva tras varios intentos fallidos
+[22m[39m{"level":"warn","msg":"request_error","requestId":"d6ef36b6-fc05-414c-b555-7edc995bb5bc","method":"POST","path":"/api/v1/auth/login","status":401,"code":"INVALID_CREDENTIALS","error":{"name":"AppError","code":"INVALID_CREDENTIALS","message":"Email o contrasena incorrectos."}}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPOST /events[2m > [22m[2mresponde EVENT_SLUG_ALREADY_USED si el slug ya existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"ddc72cdc-824a-49cb-8ce9-1a1b10271e02","method":"POST","path":"/api/v1/events","status":201,"durationMs":21}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/login[2m > [22m[2mbloquea la cuenta de forma progresiva tras varios intentos fallidos
+[22m[39m{"level":"warn","msg":"http_request","requestId":"d6ef36b6-fc05-414c-b555-7edc995bb5bc","method":"POST","path":"/api/v1/auth/login","status":401,"durationMs":35}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users[2m > [22m[2mcrea una cuenta capaz de iniciar sesion, con el email normalizado
+[22m[39m{"level":"info","msg":"http_request","requestId":"0586b113-9c73-4b60-95a2-c0c1018886c5","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":34}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mreserva el cupo antes de escribir: el ultimo lugar es de uno solo
+[22m[39m{"level":"info","msg":"http_request","requestId":"07d85361-27ac-4466-8671-c1d4090c52ab","method":"GET","path":"/api/v1/participations/80f69837-9de9-4431-b4db-3e8669876a99","status":200,"durationMs":34}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPOST /participations[2m > [22m[2mrechaza sumar sedes a un evento cerrado
+[22m[39m{"level":"info","msg":"http_request","requestId":"13748bee-9a24-48ef-ad09-dbdd160d466c","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":36}
+
+[90mstdout[2m | tests/integration/public.routes.test.ts[2m > [22m[2mcatalogo publico de eventos[2m > [22m[2mfiltra por texto libre y acota la pagina
+[22m[39m{"level":"info","msg":"http_request","requestId":"e77ac0e8-c4b9-4703-b27f-40b904b87d9d","method":"GET","path":"/api/v1/public/events","status":200,"durationMs":22}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/login[2m > [22m[2mbloquea la cuenta de forma progresiva tras varios intentos fallidos
+[22m[39m{"level":"warn","msg":"request_error","requestId":"ef6d00ea-aef5-4a5a-ba26-203dbe8fa45c","method":"POST","path":"/api/v1/auth/login","status":401,"code":"ACCOUNT_LOCKED","error":{"name":"AppError","code":"ACCOUNT_LOCKED","message":"La cuenta esta bloqueada temporalmente por intentos fallidos."}}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPOST /events[2m > [22m[2mresponde EVENT_SLUG_ALREADY_USED si el slug ya existe
+[22m[39m{"level":"warn","msg":"request_error","requestId":"2b3e574f-c39a-4914-a269-c7e553d4e3a6","method":"POST","path":"/api/v1/events","status":409,"code":"EVENT_SLUG_ALREADY_USED","error":{"name":"AppError","code":"EVENT_SLUG_ALREADY_USED","message":"Ya existe un evento con ese slug."}}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/login[2m > [22m[2mbloquea la cuenta de forma progresiva tras varios intentos fallidos
+[22m[39m{"level":"warn","msg":"http_request","requestId":"ef6d00ea-aef5-4a5a-ba26-203dbe8fa45c","method":"POST","path":"/api/v1/auth/login","status":401,"durationMs":29}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mGET /establishments/{id}[2m > [22m[2mdevuelve la sede y responde ESTABLISHMENT_NOT_FOUND si no existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"605a75e9-1459-4210-847a-4dc9ec1c0f6f","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":35}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPOST /events[2m > [22m[2mresponde EVENT_SLUG_ALREADY_USED si el slug ya existe
+[22m[39m{"level":"warn","msg":"http_request","requestId":"2b3e574f-c39a-4914-a269-c7e553d4e3a6","method":"POST","path":"/api/v1/events","status":409,"durationMs":25}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPOST /participations[2m > [22m[2mrechaza sumar sedes a un evento cerrado
+[22m[39m{"level":"warn","msg":"request_error","requestId":"96af5936-a25d-4e5d-af79-386988a2463a","method":"POST","path":"/api/v1/participations","status":409,"code":"EVENT_NOT_REGISTRABLE","error":{"name":"AppError","code":"EVENT_NOT_REGISTRABLE","message":"El evento esta \"closed\": no admite nuevas sedes."}}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mdevuelve el cupo del titular cuando falta el de acompanantes
+[22m[39m{"level":"info","msg":"http_request","requestId":"98ac5d2b-b9ef-4488-8228-3dd50b088335","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":33}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPOST /participations[2m > [22m[2mrechaza sumar sedes a un evento cerrado
+[22m[39m{"level":"warn","msg":"http_request","requestId":"96af5936-a25d-4e5d-af79-386988a2463a","method":"POST","path":"/api/v1/participations","status":409,"durationMs":28}
+
+[90mstdout[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mconfirma el registro sin sesion y se marca con origen publico
+[22m[39m{"level":"info","msg":"http_request","requestId":"f5af769c-176d-4456-b01a-11642afaed96","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":38}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mGET /establishments/{id}[2m > [22m[2mdevuelve la sede y responde ESTABLISHMENT_NOT_FOUND si no existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"ddb3a835-44e4-46ac-984d-63c0e7152797","method":"POST","path":"/api/v1/establishments","status":201,"durationMs":23}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/login[2m > [22m[2mbloquea la cuenta de forma progresiva tras varios intentos fallidos
+[22m[39m{"level":"warn","msg":"request_error","requestId":"1a638b18-4bef-46a0-9f99-650cbc498db7","method":"POST","path":"/api/v1/auth/login","status":401,"code":"ACCOUNT_LOCKED","error":{"name":"AppError","code":"ACCOUNT_LOCKED","message":"La cuenta esta bloqueada temporalmente por intentos fallidos."}}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPOST /events[2m > [22m[2mno permite nacer en un estado que no sea alcanzable
+[22m[39m{"level":"info","msg":"http_request","requestId":"57788f8a-3819-49c1-b6a7-494d7f3fbfa5","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":39}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/login[2m > [22m[2mbloquea la cuenta de forma progresiva tras varios intentos fallidos
+[22m[39m{"level":"warn","msg":"http_request","requestId":"1a638b18-4bef-46a0-9f99-650cbc498db7","method":"POST","path":"/api/v1/auth/login","status":401,"durationMs":21}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPOST /participations[2m > [22m[2mrechaza un cierre de registro anterior a su apertura
+[22m[39m{"level":"info","msg":"http_request","requestId":"79ac4f0d-e8d6-45ca-94e5-4ba1a2f4edd2","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":35}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mdevuelve el cupo del titular cuando falta el de acompanantes
+[22m[39m{"level":"warn","msg":"request_error","requestId":"cab89285-7c6b-4e0d-9bbf-02f177dc217d","method":"POST","path":"/api/v1/registrations","status":409,"code":"COMPANION_CAPACITY_EXCEEDED","error":{"name":"AppError","code":"COMPANION_CAPACITY_EXCEEDED","message":"La sede no tiene cupo para esa cantidad de acompanantes."}}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mdevuelve el cupo del titular cuando falta el de acompanantes
+[22m[39m{"level":"warn","msg":"http_request","requestId":"cab89285-7c6b-4e0d-9bbf-02f177dc217d","method":"POST","path":"/api/v1/registrations","status":409,"durationMs":58}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mGET /establishments/{id}[2m > [22m[2mdevuelve la sede y responde ESTABLISHMENT_NOT_FOUND si no existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"dbf6ac33-eee7-45aa-946b-a21b44655a31","method":"GET","path":"/api/v1/establishments/32d8346d-ddcf-4501-a689-998f081bc5af","status":200,"durationMs":20}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPOST /events[2m > [22m[2mno permite nacer en un estado que no sea alcanzable
+[22m[39m{"level":"warn","msg":"request_error","requestId":"071355be-ad9f-4bb4-b67f-43a8cdd01b80","method":"POST","path":"/api/v1/events","status":409,"code":"STATUS_TRANSITION_INVALID","error":{"name":"AppError","code":"STATUS_TRANSITION_INVALID","message":"Un evento en estado \"draft\" no puede pasar a \"closed\"."}}
+
+[90mstdout[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mconfirma el registro sin sesion y se marca con origen publico
+[22m[39m{"level":"info","msg":"http_request","requestId":"cbf0899e-fc4e-4b42-ba88-cbfffa2dd567","method":"POST","path":"/api/v1/public/registrations","status":201,"durationMs":51}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPOST /events[2m > [22m[2mno permite nacer en un estado que no sea alcanzable
+[22m[39m{"level":"warn","msg":"http_request","requestId":"071355be-ad9f-4bb4-b67f-43a8cdd01b80","method":"POST","path":"/api/v1/events","status":409,"durationMs":17}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/login[2m > [22m[2mvalida el cuerpo antes de tocar la base de datos
+[22m[39m{"level":"warn","msg":"request_error","requestId":"6b2642e4-e531-4306-8a07-48fe71d13653","method":"POST","path":"/api/v1/auth/login","status":422,"code":"VALIDATION_ERROR","error":{"name":"AppError","code":"VALIDATION_ERROR","message":"La solicitud no cumple el formato esperado."}}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/login[2m > [22m[2mvalida el cuerpo antes de tocar la base de datos
+[22m[39m{"level":"warn","msg":"http_request","requestId":"6b2642e4-e531-4306-8a07-48fe71d13653","method":"POST","path":"/api/v1/auth/login","status":422,"durationMs":5}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mdevuelve el cupo del titular cuando falta el de acompanantes
+[22m[39m{"level":"info","msg":"http_request","requestId":"2416b77c-820a-430d-8997-2cdfb7ff5451","method":"GET","path":"/api/v1/participations/4192e2f0-ea6c-4ee6-a952-528b2d81f5c1","status":200,"durationMs":25}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPOST /participations[2m > [22m[2mrechaza un cierre de registro anterior a su apertura
+[22m[39m{"level":"warn","msg":"request_error","requestId":"c810b35a-ca3b-42d2-8855-80a810dc1e5d","method":"POST","path":"/api/v1/participations","status":422,"code":"VALIDATION_ERROR","error":{"name":"AppError","code":"VALIDATION_ERROR","message":"El campo \"registrationClosesAt\" no puede ser anterior al inicio de la ventana."}}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPOST /participations[2m > [22m[2mrechaza un cierre de registro anterior a su apertura
+[22m[39m{"level":"warn","msg":"http_request","requestId":"c810b35a-ca3b-42d2-8855-80a810dc1e5d","method":"POST","path":"/api/v1/participations","status":422,"durationMs":26}
+
+[90mstderr[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mGET /establishments/{id}[2m > [22m[2mdevuelve la sede y responde ESTABLISHMENT_NOT_FOUND si no existe
+[22m[39m{"level":"warn","msg":"request_error","requestId":"7327f281-4275-472a-9fcf-321e10a307ff","method":"GET","path":"/api/v1/establishments/no-existe","status":404,"code":"ESTABLISHMENT_NOT_FOUND","error":{"name":"AppError","code":"ESTABLISHMENT_NOT_FOUND","message":"El establecimiento no existe."}}
+
+[90mstderr[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mGET /establishments/{id}[2m > [22m[2mdevuelve la sede y responde ESTABLISHMENT_NOT_FOUND si no existe
+[22m[39m{"level":"warn","msg":"http_request","requestId":"7327f281-4275-472a-9fcf-321e10a307ff","method":"GET","path":"/api/v1/establishments/no-existe","status":404,"durationMs":25}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mGET /events[2m > [22m[2mlista con filtros, busqueda y paginacion
+[22m[39m{"level":"info","msg":"http_request","requestId":"fa461745-656b-41a6-a578-a9533e8133d9","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":34}
+
+[90mstdout[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mGET /auth/me[2m > [22m[2mdevuelve el usuario y la sesion con una cookie valida
+[22m[39m{"level":"info","msg":"http_request","requestId":"5d40cfe7-28f7-46ef-aef7-a191d9b63677","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":35}
+
+[90mstdout[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mconfirma el registro sin sesion y se marca con origen publico
+[22m[39m{"level":"info","msg":"http_request","requestId":"8e60f4dd-e9f9-4a5a-b9ee-70fda51a5113","method":"GET","path":"/api/v1/registrations","status":200,"durationMs":70}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mGET /events[2m > [22m[2mlista con filtros, busqueda y paginacion
+[22m[39m{"level":"info","msg":"http_request","requestId":"62cd1867-81dd-420e-aae2-0105bfde6bd9","method":"POST","path":"/api/v1/events","status":201,"durationMs":19}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mdevuelve el cupo del titular cuando falta el de acompanantes
+[22m[39m{"level":"info","msg":"http_request","requestId":"048ac0c3-9ee5-4121-81dd-d66c52c094e2","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":62}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mPATCH /establishments/{id}[2m > [22m[2mactualiza los campos enviados y no toca el codigo
+[22m[39m{"level":"info","msg":"http_request","requestId":"e02b0606-2aa4-4067-a46e-efe5c137e27d","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":34}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mGET /participations[2m > [22m[2mlista por evento con la sede resuelta y su cupo disponible
+[22m[39m{"level":"info","msg":"http_request","requestId":"443c5bed-14fa-4782-bf81-0095bb845ec7","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":33}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mGET /events[2m > [22m[2mlista con filtros, busqueda y paginacion
+[22m[39m{"level":"info","msg":"http_request","requestId":"b2b35de9-4fbd-46c2-9c69-f82153c4aba6","method":"POST","path":"/api/v1/events","status":201,"durationMs":22}
+
+[90mstdout[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mGET /auth/me[2m > [22m[2mdevuelve el usuario y la sesion con una cookie valida
+[22m[39m{"level":"info","msg":"http_request","requestId":"ae6154ec-e563-4c54-aeab-ec1431988b59","method":"GET","path":"/api/v1/auth/me","status":200,"durationMs":20}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mPATCH /establishments/{id}[2m > [22m[2mactualiza los campos enviados y no toca el codigo
+[22m[39m{"level":"info","msg":"http_request","requestId":"be7b3efb-c9ec-4f2d-b178-197582ee44c4","method":"POST","path":"/api/v1/establishments","status":201,"durationMs":19}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mGET /participations[2m > [22m[2mlista por evento con la sede resuelta y su cupo disponible
+[22m[39m{"level":"info","msg":"http_request","requestId":"fab4f6d5-0c4e-4708-8532-195120d612d4","method":"POST","path":"/api/v1/participations","status":201,"durationMs":35}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mGET /events[2m > [22m[2mlista con filtros, busqueda y paginacion
+[22m[39m{"level":"info","msg":"http_request","requestId":"a1b45a94-b818-4839-968e-579dec6cd4b5","method":"POST","path":"/api/v1/events","status":201,"durationMs":24}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mGET /auth/me[2m > [22m[2mresponde 401 UNAUTHENTICATED sin cookie
+[22m[39m{"level":"warn","msg":"request_error","requestId":"ea1c0109-ec41-4240-ba5a-51b8e13f5254","method":"GET","path":"/api/v1/auth/me","status":401,"code":"UNAUTHENTICATED","error":{"name":"AppError","code":"UNAUTHENTICATED","message":"Se requiere una sesion activa para realizar esta operacion."}}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza el documento duplicado sin gastar cupo y con el detalle del motivo
+[22m[39m{"level":"info","msg":"http_request","requestId":"bc4239ee-c783-401b-b93c-75b3073d1c1e","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":41}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mGET /auth/me[2m > [22m[2mresponde 401 UNAUTHENTICATED sin cookie
+[22m[39m{"level":"warn","msg":"http_request","requestId":"ea1c0109-ec41-4240-ba5a-51b8e13f5254","method":"GET","path":"/api/v1/auth/me","status":401,"durationMs":3}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users[2m > [22m[2mcrea una cuenta capaz de iniciar sesion, con el email normalizado
+[22m[39m{"level":"info","msg":"http_request","requestId":"a951c47f-5774-4c2d-8d2f-7cf67b714dfb","method":"POST","path":"/api/v1/users","status":201,"durationMs":411}
+
+[90mstdout[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mcomparte las reglas de cupo de la mesa de registro
+[22m[39m{"level":"info","msg":"http_request","requestId":"fb677a97-92b1-48a5-b3a7-0b0c2f7d74cd","method":"POST","path":"/api/v1/public/registrations","status":201,"durationMs":44}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mGET /auth/me[2m > [22m[2mresponde 401 UNAUTHENTICATED con un token desconocido
+[22m[39m{"level":"warn","msg":"request_error","requestId":"9675bd62-fbfd-493f-921c-0140c447ae5d","method":"GET","path":"/api/v1/auth/me","status":401,"code":"UNAUTHENTICATED","error":{"name":"AppError","code":"UNAUTHENTICATED","message":"Se requiere una sesion activa para realizar esta operacion."}}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mPATCH /establishments/{id}[2m > [22m[2mactualiza los campos enviados y no toca el codigo
+[22m[39m{"level":"info","msg":"http_request","requestId":"1f7cf8ac-b735-433e-ae21-a3aed1ebb237","method":"PATCH","path":"/api/v1/establishments/c9829692-bd9c-4eb9-9ca0-316a14a81d78","status":200,"durationMs":28}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mGET /auth/me[2m > [22m[2mresponde 401 UNAUTHENTICATED con un token desconocido
+[22m[39m{"level":"warn","msg":"http_request","requestId":"9675bd62-fbfd-493f-921c-0140c447ae5d","method":"GET","path":"/api/v1/auth/me","status":401,"durationMs":9}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mGET /events[2m > [22m[2mlista con filtros, busqueda y paginacion
+[22m[39m{"level":"info","msg":"http_request","requestId":"9a0f6f93-7590-4bff-b9d7-fe7784ee2a00","method":"GET","path":"/api/v1/events","status":200,"durationMs":31}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mGET /participations[2m > [22m[2mlista por evento con la sede resuelta y su cupo disponible
+[22m[39m{"level":"info","msg":"http_request","requestId":"a5b4e809-983a-4605-988a-fb94e6b614a3","method":"POST","path":"/api/v1/participations","status":201,"durationMs":40}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mcomparte las reglas de cupo de la mesa de registro
+[22m[39m{"level":"warn","msg":"request_error","requestId":"a624a7f3-2689-41d6-881f-5c78650c3bdc","method":"POST","path":"/api/v1/public/registrations","status":409,"code":"TITULAR_CAPACITY_EXCEEDED","error":{"name":"AppError","code":"TITULAR_CAPACITY_EXCEEDED","message":"La sede no admite mas titulares: se cerro entre la consulta y la reserva, o el cupo esta completo."}}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mcomparte las reglas de cupo de la mesa de registro
+[22m[39m{"level":"warn","msg":"http_request","requestId":"a624a7f3-2689-41d6-881f-5c78650c3bdc","method":"POST","path":"/api/v1/public/registrations","status":409,"durationMs":34}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mPATCH /establishments/{id}[2m > [22m[2mno permite cambiar el codigo
+[22m[39m{"level":"info","msg":"http_request","requestId":"9374082f-4be8-46b6-aace-606ea29a6a34","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":31}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza el documento duplicado sin gastar cupo y con el detalle del motivo
+[22m[39m{"level":"info","msg":"http_request","requestId":"525aa6e3-6782-4047-9d10-a2c4f4d6d3ad","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":64}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mGET /events[2m > [22m[2mlista con filtros, busqueda y paginacion
+[22m[39m{"level":"info","msg":"http_request","requestId":"739d13ec-c513-466d-a357-d3eda67f03a8","method":"GET","path":"/api/v1/events","status":200,"durationMs":26}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mGET /auth/me[2m > [22m[2mresponde 401 SESSION_EXPIRED cuando la sesion caduco
+[22m[39m{"level":"warn","msg":"request_error","requestId":"ee1a5c68-57c1-41f9-8953-d49eab55ebf4","method":"GET","path":"/api/v1/auth/me","status":401,"code":"SESSION_EXPIRED","error":{"name":"AppError","code":"SESSION_EXPIRED","message":"La sesion expiro. Inicia sesion de nuevo."}}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mGET /auth/me[2m > [22m[2mresponde 401 SESSION_EXPIRED cuando la sesion caduco
+[22m[39m{"level":"warn","msg":"http_request","requestId":"ee1a5c68-57c1-41f9-8953-d49eab55ebf4","method":"GET","path":"/api/v1/auth/me","status":401,"durationMs":8}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mGET /participations[2m > [22m[2mlista por evento con la sede resuelta y su cupo disponible
+[22m[39m{"level":"info","msg":"http_request","requestId":"7e228d37-06e4-4984-b90f-561e94291473","method":"GET","path":"/api/v1/participations","status":200,"durationMs":35}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza el documento duplicado sin gastar cupo y con el detalle del motivo
+[22m[39m{"level":"warn","msg":"request_error","requestId":"1c58d932-5c82-4442-babc-f033b93d27f3","method":"POST","path":"/api/v1/registrations","status":409,"code":"DUPLICATE_DOCUMENT","error":{"name":"AppError","code":"DUPLICATE_DOCUMENT","message":"El documento ingresado ya se encuentra registrado en este evento."}}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza el documento duplicado sin gastar cupo y con el detalle del motivo
+[22m[39m{"level":"warn","msg":"http_request","requestId":"1c58d932-5c82-4442-babc-f033b93d27f3","method":"POST","path":"/api/v1/registrations","status":409,"durationMs":49}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mGET /events[2m > [22m[2mlista con filtros, busqueda y paginacion
+[22m[39m{"level":"info","msg":"http_request","requestId":"87b5d7ed-8f23-4e6a-9760-b082361ff529","method":"GET","path":"/api/v1/events","status":200,"durationMs":26}
+
+[90mstdout[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mcomparte las reglas de cupo de la mesa de registro
+[22m[39m{"level":"info","msg":"http_request","requestId":"74eb3d77-ed7b-4f93-9239-6417bf8ba89e","method":"GET","path":"/api/v1/public/events/feria","status":200,"durationMs":71}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mPATCH /establishments/{id}[2m > [22m[2mno permite cambiar el codigo
+[22m[39m{"level":"info","msg":"http_request","requestId":"bd1960c0-0d91-4487-ac50-de324d61c3b7","method":"POST","path":"/api/v1/establishments","status":201,"durationMs":49}
+
+[90mstdout[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mGET /auth/me[2m > [22m[2mresponde 401 ACCOUNT_DISABLED si la cuenta se desactiva tras el login
+[22m[39m{"level":"info","msg":"http_request","requestId":"b34cfc07-9199-4040-962b-75a981eb808a","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":39}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mGET /participations[2m > [22m[2mfiltra por estado y pagina el resultado
+[22m[39m{"level":"info","msg":"http_request","requestId":"3075aa30-f936-4005-9ab4-ddd1bbdd2301","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":34}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza el documento duplicado sin gastar cupo y con el detalle del motivo
+[22m[39m{"level":"info","msg":"http_request","requestId":"fe638b39-3c16-4ee6-ad74-66b11755f0c6","method":"GET","path":"/api/v1/participations/7e06dcc2-ecdc-4b3a-acbf-b352153b1f6b","status":200,"durationMs":29}
+
+[90mstderr[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mPATCH /establishments/{id}[2m > [22m[2mno permite cambiar el codigo
+[22m[39m{"level":"warn","msg":"request_error","requestId":"615cad55-58b5-4677-9bf2-3500eb55b166","method":"PATCH","path":"/api/v1/establishments/0f79e773-91be-42bd-bd1c-e76f66303b13","status":422,"code":"VALIDATION_ERROR","error":{"name":"AppError","code":"VALIDATION_ERROR","message":"El codigo de un establecimiento no se puede cambiar."}}
+
+[90mstderr[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mPATCH /establishments/{id}[2m > [22m[2mno permite cambiar el codigo
+[22m[39m{"level":"warn","msg":"http_request","requestId":"615cad55-58b5-4677-9bf2-3500eb55b166","method":"PATCH","path":"/api/v1/establishments/0f79e773-91be-42bd-bd1c-e76f66303b13","status":422,"durationMs":26}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mGET /auth/me[2m > [22m[2mresponde 401 ACCOUNT_DISABLED si la cuenta se desactiva tras el login
+[22m[39m{"level":"warn","msg":"request_error","requestId":"5b9888f4-fb9c-44e5-9563-a9873afcf336","method":"GET","path":"/api/v1/auth/me","status":401,"code":"ACCOUNT_DISABLED","error":{"name":"AppError","code":"ACCOUNT_DISABLED","message":"La cuenta esta desactivada. Solicita acceso a un administrador."}}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mGET /auth/me[2m > [22m[2mresponde 401 ACCOUNT_DISABLED si la cuenta se desactiva tras el login
+[22m[39m{"level":"warn","msg":"http_request","requestId":"5b9888f4-fb9c-44e5-9563-a9873afcf336","method":"GET","path":"/api/v1/auth/me","status":401,"durationMs":16}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mGET /events/{idOrSlug}[2m > [22m[2macepta el identificador o el slug
+[22m[39m{"level":"info","msg":"http_request","requestId":"6439b5f8-ec37-4ee5-90fa-bbefdcc06840","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":41}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mGET /participations[2m > [22m[2mfiltra por estado y pagina el resultado
+[22m[39m{"level":"info","msg":"http_request","requestId":"81a49c69-0fc2-4c94-821f-3fa4ca6c00dc","method":"POST","path":"/api/v1/participations","status":201,"durationMs":36}
+
+[90mstdout[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mrechaza el documento duplicado en el evento y da el detalle al frontend
+[22m[39m{"level":"info","msg":"http_request","requestId":"468900ff-8346-4ad4-bfa0-1f26a6430850","method":"POST","path":"/api/v1/public/registrations","status":201,"durationMs":45}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mGET /events/{idOrSlug}[2m > [22m[2macepta el identificador o el slug
+[22m[39m{"level":"info","msg":"http_request","requestId":"b994a407-5ec2-440a-a59d-d5dec821c432","method":"POST","path":"/api/v1/events","status":201,"durationMs":23}
+
+[90mstdout[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/logout[2m > [22m[2mrevoca la sesion y borra la cookie
+[22m[39m{"level":"info","msg":"http_request","requestId":"61200735-ca08-4529-a7d8-fe9fec2facad","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":36}
+
+[90mstdout[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mPATCH /establishments/{id}[2m > [22m[2mresponde ESTABLISHMENT_NOT_FOUND si la sede no existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"df500aed-58ff-459c-9ecf-571970f9835e","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":40}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mGET /participations[2m > [22m[2mfiltra por estado y pagina el resultado
+[22m[39m{"level":"info","msg":"http_request","requestId":"068134af-f934-4fbf-b861-6d7e6df0811b","method":"POST","path":"/api/v1/participations","status":201,"durationMs":38}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza el mismo documento en otra sede del evento
+[22m[39m{"level":"info","msg":"http_request","requestId":"fa681d5e-6957-4033-8db9-c9cb704e6f33","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":43}
+
+[90mstdout[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/logout[2m > [22m[2mrevoca la sesion y borra la cookie
+[22m[39m{"level":"info","msg":"http_request","requestId":"8f23a0e4-75f7-496f-987b-7329dbe077a9","method":"POST","path":"/api/v1/auth/logout","status":200,"durationMs":15}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mrechaza el documento duplicado en el evento y da el detalle al frontend
+[22m[39m{"level":"warn","msg":"request_error","requestId":"9beaa1a5-7434-47c9-b315-a6a76405c91f","method":"POST","path":"/api/v1/public/registrations","status":409,"code":"DUPLICATE_DOCUMENT","error":{"name":"AppError","code":"DUPLICATE_DOCUMENT","message":"El documento ingresado ya se encuentra registrado en este evento."}}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mGET /events/{idOrSlug}[2m > [22m[2macepta el identificador o el slug
+[22m[39m{"level":"info","msg":"http_request","requestId":"87ab2500-ec23-4522-b7c1-eb250c409db9","method":"GET","path":"/api/v1/events/47097875-4819-4b88-8e7e-aec8337db028","status":200,"durationMs":21}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mrechaza el documento duplicado en el evento y da el detalle al frontend
+[22m[39m{"level":"warn","msg":"http_request","requestId":"9beaa1a5-7434-47c9-b315-a6a76405c91f","method":"POST","path":"/api/v1/public/registrations","status":409,"durationMs":27}
+
+[90mstderr[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mPATCH /establishments/{id}[2m > [22m[2mresponde ESTABLISHMENT_NOT_FOUND si la sede no existe
+[22m[39m{"level":"warn","msg":"request_error","requestId":"a19fa56e-69a8-416a-963d-f7e7b778f30c","method":"PATCH","path":"/api/v1/establishments/00000000-0000-4000-8000-000000000000","status":404,"code":"ESTABLISHMENT_NOT_FOUND","error":{"name":"AppError","code":"ESTABLISHMENT_NOT_FOUND","message":"El establecimiento no existe."}}
+
+[90mstderr[2m | tests/integration/establishments.routes.test.ts[2m > [22m[2mPATCH /establishments/{id}[2m > [22m[2mresponde ESTABLISHMENT_NOT_FOUND si la sede no existe
+[22m[39m{"level":"warn","msg":"http_request","requestId":"a19fa56e-69a8-416a-963d-f7e7b778f30c","method":"PATCH","path":"/api/v1/establishments/00000000-0000-4000-8000-000000000000","status":404,"durationMs":22}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mGET /participations[2m > [22m[2mfiltra por estado y pagina el resultado
+[22m[39m{"level":"info","msg":"http_request","requestId":"fe70df27-bd93-4401-882c-503767219916","method":"PATCH","path":"/api/v1/participations/1fa66091-0a58-4bc0-8b89-97cfbfc49476","status":200,"durationMs":42}
+
+ [32m✓[39m tests/integration/establishments.routes.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 2884[2mms[22m[39m
+     [33m[2m✓[22m[39m responde ESTABLISHMENT_CODE_ALREADY_USED si el codigo ya existe [33m 311[2mms[22m[39m
+     [33m[2m✓[22m[39m lista con filtros, busqueda y paginacion [33m 930[2mms[22m[39m
+     [33m[2m✓[22m[39m devuelve la sede y responde ESTABLISHMENT_NOT_FOUND si no existe [33m 301[2mms[22m[39m
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/logout[2m > [22m[2mrevoca la sesion y borra la cookie
+[22m[39m{"level":"warn","msg":"request_error","requestId":"834b984c-2129-42ad-9dfa-5a361cd5f63b","method":"GET","path":"/api/v1/auth/me","status":401,"code":"SESSION_REVOKED","error":{"name":"AppError","code":"SESSION_REVOKED","message":"La sesion fue revocada. Inicia sesion de nuevo."}}
+
+[90mstderr[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/logout[2m > [22m[2mrevoca la sesion y borra la cookie
+[22m[39m{"level":"warn","msg":"http_request","requestId":"834b984c-2129-42ad-9dfa-5a361cd5f63b","method":"GET","path":"/api/v1/auth/me","status":401,"durationMs":10}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mGET /events/{idOrSlug}[2m > [22m[2macepta el identificador o el slug
+[22m[39m{"level":"info","msg":"http_request","requestId":"d9a1fc42-c5a5-40a2-809b-f12a3db9cf02","method":"GET","path":"/api/v1/events/dia-de-la-madre","status":200,"durationMs":32}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza el mismo documento en otra sede del evento
+[22m[39m{"level":"info","msg":"http_request","requestId":"9618e46b-3201-4f5b-9a41-b33238f40fd4","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":59}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mGET /participations[2m > [22m[2mfiltra por estado y pagina el resultado
+[22m[39m{"level":"info","msg":"http_request","requestId":"1d947901-f201-49d7-8aed-2760d687b53c","method":"GET","path":"/api/v1/participations","status":200,"durationMs":36}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mrechaza el documento duplicado en el evento y da el detalle al frontend
+[22m[39m{"level":"warn","msg":"request_error","requestId":"9607fa61-b2e5-4960-be37-ec241661146d","method":"POST","path":"/api/v1/public/registrations","status":409,"code":"DUPLICATE_DOCUMENT","error":{"name":"AppError","code":"DUPLICATE_DOCUMENT","message":"El documento ingresado ya se encuentra registrado en este evento."}}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mrechaza el documento duplicado en el evento y da el detalle al frontend
+[22m[39m{"level":"warn","msg":"http_request","requestId":"9607fa61-b2e5-4960-be37-ec241661146d","method":"POST","path":"/api/v1/public/registrations","status":409,"durationMs":29}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users[2m > [22m[2mcrea una cuenta capaz de iniciar sesion, con el email normalizado
+[22m[39m{"level":"info","msg":"http_request","requestId":"d9681f78-dfcc-4919-b843-806424a15d6c","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":501}
+
+[90mstdout[2m | tests/integration/auth.routes.test.ts[2m > [22m[2mPOST /auth/logout[2m > [22m[2mes idempotente: sin sesion responde 200 con revoked=false
+[22m[39m{"level":"info","msg":"http_request","requestId":"3dc0a10c-bf0e-4384-8237-a7679f802dee","method":"POST","path":"/api/v1/auth/logout","status":200,"durationMs":2}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mGET /participations[2m > [22m[2mfiltra por estado y pagina el resultado
+[22m[39m{"level":"info","msg":"http_request","requestId":"cdd41c61-1482-4176-a202-8b85885ce6d2","method":"GET","path":"/api/v1/participations","status":200,"durationMs":32}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza el mismo documento en otra sede del evento
+[22m[39m{"level":"warn","msg":"request_error","requestId":"7a75631c-c789-4f45-a1da-872a0411df13","method":"POST","path":"/api/v1/registrations","status":409,"code":"DUPLICATE_DOCUMENT","error":{"name":"AppError","code":"DUPLICATE_DOCUMENT","message":"El documento ingresado ya se encuentra registrado en este evento."}}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza el mismo documento en otra sede del evento
+[22m[39m{"level":"warn","msg":"http_request","requestId":"7a75631c-c789-4f45-a1da-872a0411df13","method":"POST","path":"/api/v1/registrations","status":409,"durationMs":40}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mGET /events/{idOrSlug}[2m > [22m[2mresponde EVENT_NOT_FOUND si el evento no existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"c01ac2e9-cb91-4594-b68b-f9034df140f3","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":29}
+
+[90mstdout[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mrechaza el documento duplicado en el evento y da el detalle al frontend
+[22m[39m{"level":"info","msg":"http_request","requestId":"673322ca-8f1f-4040-b0d9-ec51e14db241","method":"POST","path":"/api/v1/public/registrations","status":201,"durationMs":34}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users[2m > [22m[2mrechaza un email ya registrado, sin importar las mayusculas
+[22m[39m{"level":"info","msg":"http_request","requestId":"692ea645-f795-495c-ae7a-784251178fc2","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":29}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza el mismo documento en otra sede del evento
+[22m[39m{"level":"info","msg":"http_request","requestId":"fe7a7f48-30b3-49c3-a722-5227885cd3ff","method":"GET","path":"/api/v1/participations/cefee674-1e5b-4a3f-b605-2060ed3cc119","status":200,"durationMs":24}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mGET /participations/{id}[2m > [22m[2mdevuelve la participacion y responde PARTICIPATION_NOT_FOUND si no existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"72117225-6231-4c95-a6aa-b3fa73b8b7a4","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":30}
+
+ [32m✓[39m tests/integration/auth.routes.test.ts [2m([22m[2m14 tests[22m[2m)[22m[33m 3114[2mms[22m[39m
+     [33m[2m✓[22m[39m emite una cookie HttpOnly y devuelve el usuario sin credenciales [33m 432[2mms[22m[39m
+     [33m[2m✓[22m[39m no distingue un email inexistente de una contrasena incorrecta [33m 827[2mms[22m[39m
+     [33m[2m✓[22m[39m bloquea la cuenta de forma progresiva tras varios intentos fallidos [33m 536[2mms[22m[39m
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mGET /events/{idOrSlug}[2m > [22m[2mresponde EVENT_NOT_FOUND si el evento no existe
+[22m[39m{"level":"warn","msg":"request_error","requestId":"c49f580b-e6a9-49fc-8684-21900aa650ca","method":"GET","path":"/api/v1/events/no-existe","status":404,"code":"EVENT_NOT_FOUND","error":{"name":"AppError","code":"EVENT_NOT_FOUND","message":"El evento no existe."}}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mGET /participations/{id}[2m > [22m[2mdevuelve la participacion y responde PARTICIPATION_NOT_FOUND si no existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"22b5a63c-295a-4d95-805e-5243d75d1c30","method":"POST","path":"/api/v1/participations","status":201,"durationMs":33}
+
+[90mstdout[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mrechaza como acompanante un documento ya usado en el evento
+[22m[39m{"level":"info","msg":"http_request","requestId":"0ef9f73a-d447-4866-860b-ad34f9efdbe5","method":"POST","path":"/api/v1/public/registrations","status":201,"durationMs":35}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mGET /events/{idOrSlug}[2m > [22m[2mresponde EVENT_NOT_FOUND si el evento no existe
+[22m[39m{"level":"warn","msg":"http_request","requestId":"c49f580b-e6a9-49fc-8684-21900aa650ca","method":"GET","path":"/api/v1/events/no-existe","status":404,"durationMs":29}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza como titular el documento que ya uso un acompanante
+[22m[39m{"level":"info","msg":"http_request","requestId":"4cf362cd-36cb-4795-8a6c-160fe178d621","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":32}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mGET /participations/{id}[2m > [22m[2mdevuelve la participacion y responde PARTICIPATION_NOT_FOUND si no existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"24a23e1d-9722-4b3e-afc6-c268e0064a94","method":"GET","path":"/api/v1/participations/6c1fe107-4a9f-4146-a36d-1745a31b6f5f","status":200,"durationMs":21}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mactualiza solo los campos enviados
+[22m[39m{"level":"info","msg":"http_request","requestId":"22518108-94ac-46a9-8a0c-12445c3966bd","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":26}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mGET /participations/{id}[2m > [22m[2mdevuelve la participacion y responde PARTICIPATION_NOT_FOUND si no existe
+[22m[39m{"level":"warn","msg":"request_error","requestId":"03417d79-f0cd-44b1-8607-e56401dd3c43","method":"GET","path":"/api/v1/participations/no-existe","status":404,"code":"PARTICIPATION_NOT_FOUND","error":{"name":"AppError","code":"PARTICIPATION_NOT_FOUND","message":"La participacion no existe."}}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mGET /participations/{id}[2m > [22m[2mdevuelve la participacion y responde PARTICIPATION_NOT_FOUND si no existe
+[22m[39m{"level":"warn","msg":"http_request","requestId":"03417d79-f0cd-44b1-8607-e56401dd3c43","method":"GET","path":"/api/v1/participations/no-existe","status":404,"durationMs":19}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza como titular el documento que ya uso un acompanante
+[22m[39m{"level":"info","msg":"http_request","requestId":"d244ee1b-1fea-4709-9049-b967a0b578bf","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":46}
+
+[90mstdout[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mrechaza como acompanante un documento ya usado en el evento
+[22m[39m{"level":"info","msg":"http_request","requestId":"2ac01753-c71e-4338-819c-6029e80fa1b8","method":"POST","path":"/api/v1/public/registrations","status":201,"durationMs":38}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mactualiza solo los campos enviados
+[22m[39m{"level":"info","msg":"http_request","requestId":"0deeb446-d03b-47ae-8aed-a12a13e2dbd0","method":"POST","path":"/api/v1/events","status":201,"durationMs":20}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mrechaza el alta si la sede cerro, la sede esta apagada o el evento no esta publicado
+[22m[39m{"level":"warn","msg":"request_error","requestId":"64680ca5-7020-440f-ad8d-cfbe9f0a3429","method":"POST","path":"/api/v1/public/registrations","status":409,"code":"PARTICIPATION_CLOSED","error":{"name":"AppError","code":"PARTICIPATION_CLOSED","message":"La sede no esta recibiendo registros."}}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mrechaza el alta si la sede cerro, la sede esta apagada o el evento no esta publicado
+[22m[39m{"level":"warn","msg":"http_request","requestId":"64680ca5-7020-440f-ad8d-cfbe9f0a3429","method":"POST","path":"/api/v1/public/registrations","status":409,"durationMs":18}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mactualiza solo los campos enviados
+[22m[39m{"level":"info","msg":"http_request","requestId":"80a86d98-d859-43af-b60b-a9503636f429","method":"PATCH","path":"/api/v1/events/91c059cd-8adf-4fae-b80e-7320627fe80b","status":200,"durationMs":26}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza como titular el documento que ya uso un acompanante
+[22m[39m{"level":"warn","msg":"request_error","requestId":"c82895a1-9c4a-4231-9df0-74f9eb56f565","method":"POST","path":"/api/v1/registrations","status":409,"code":"DUPLICATE_DOCUMENT","error":{"name":"AppError","code":"DUPLICATE_DOCUMENT","message":"Este documento ya esta registrado como acompanante de otra persona."}}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2medita el cupo mientras no haya registros confirmados
+[22m[39m{"level":"info","msg":"http_request","requestId":"297b6229-6654-48b7-9364-aa615a12b683","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":29}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza como titular el documento que ya uso un acompanante
+[22m[39m{"level":"warn","msg":"http_request","requestId":"c82895a1-9c4a-4231-9df0-74f9eb56f565","method":"POST","path":"/api/v1/registrations","status":409,"durationMs":36}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users[2m > [22m[2mrechaza un email ya registrado, sin importar las mayusculas
+[22m[39m{"level":"warn","msg":"request_error","requestId":"1eef294f-89d6-43d9-84c8-1fd0533d23c5","method":"POST","path":"/api/v1/users","status":409,"code":"EMAIL_ALREADY_USED","error":{"name":"AppError","code":"EMAIL_ALREADY_USED","message":"Ya existe un usuario con ese email."}}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users[2m > [22m[2mrechaza un email ya registrado, sin importar las mayusculas
+[22m[39m{"level":"warn","msg":"http_request","requestId":"1eef294f-89d6-43d9-84c8-1fd0533d23c5","method":"POST","path":"/api/v1/users","status":409,"durationMs":333}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mrechaza el alta si la sede cerro, la sede esta apagada o el evento no esta publicado
+[22m[39m{"level":"warn","msg":"request_error","requestId":"80044299-11ae-4ce4-a952-ea91cfb12abc","method":"POST","path":"/api/v1/public/registrations","status":409,"code":"PARTICIPATION_CLOSED","error":{"name":"AppError","code":"PARTICIPATION_CLOSED","message":"La sede no esta recibiendo registros."}}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mrechaza el alta si la sede cerro, la sede esta apagada o el evento no esta publicado
+[22m[39m{"level":"warn","msg":"http_request","requestId":"80044299-11ae-4ce4-a952-ea91cfb12abc","method":"POST","path":"/api/v1/public/registrations","status":409,"durationMs":17}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2medita el cupo mientras no haya registros confirmados
+[22m[39m{"level":"info","msg":"http_request","requestId":"63320e20-1bd6-4aad-bf62-4fbe783df90d","method":"POST","path":"/api/v1/participations","status":201,"durationMs":29}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mrecorre el ciclo de vida y bloquea los saltos no permitidos
+[22m[39m{"level":"info","msg":"http_request","requestId":"21d35ac9-08ae-4bd1-8f05-3d9326938479","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":28}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users[2m > [22m[2mrechaza una contrasena que no cumple la politica
+[22m[39m{"level":"info","msg":"http_request","requestId":"7a4e487e-7ced-46e1-9a60-6648c3f800ef","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":34}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mrecorre el ciclo de vida y bloquea los saltos no permitidos
+[22m[39m{"level":"info","msg":"http_request","requestId":"0f2b3352-0631-435c-9059-54b2dfe5aec4","method":"POST","path":"/api/v1/events","status":201,"durationMs":22}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2medita el cupo mientras no haya registros confirmados
+[22m[39m{"level":"info","msg":"http_request","requestId":"71fcb766-d20f-4d78-a3aa-03a03e87d62f","method":"PATCH","path":"/api/v1/participations/4ad7dbbf-f8a4-426e-9c1b-698286bc31d3","status":200,"durationMs":35}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza como acompanante el documento de un titular
+[22m[39m{"level":"info","msg":"http_request","requestId":"b83a557c-b1ec-4c26-a376-8bd0deeb2ca9","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":32}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mrechaza el alta si la sede cerro, la sede esta apagada o el evento no esta publicado
+[22m[39m{"level":"warn","msg":"request_error","requestId":"d0976248-703b-4b2b-9735-95a583ec98ed","method":"POST","path":"/api/v1/public/registrations","status":409,"code":"EVENT_NOT_REGISTRABLE","error":{"name":"AppError","code":"EVENT_NOT_REGISTRABLE","message":"El evento no admite registros: todavia no esta publicado o ya se cerro."}}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mrechaza el alta si la sede cerro, la sede esta apagada o el evento no esta publicado
+[22m[39m{"level":"warn","msg":"http_request","requestId":"d0976248-703b-4b2b-9735-95a583ec98ed","method":"POST","path":"/api/v1/public/registrations","status":409,"durationMs":18}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users[2m > [22m[2mrechaza una contrasena que no cumple la politica
+[22m[39m{"level":"warn","msg":"request_error","requestId":"6df8881f-73d5-4493-864d-c8cd41cfc3fd","method":"POST","path":"/api/v1/users","status":422,"code":"VALIDATION_ERROR","error":{"name":"AppError","code":"VALIDATION_ERROR","message":"La solicitud no cumple el formato esperado."}}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users[2m > [22m[2mrechaza una contrasena que no cumple la politica
+[22m[39m{"level":"warn","msg":"http_request","requestId":"6df8881f-73d5-4493-864d-c8cd41cfc3fd","method":"POST","path":"/api/v1/users","status":422,"durationMs":18}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mrecorre el ciclo de vida y bloquea los saltos no permitidos
+[22m[39m{"level":"info","msg":"http_request","requestId":"11f5d15e-63cc-4de4-b116-3914f0d83ff3","method":"PATCH","path":"/api/v1/events/26621a1e-173c-43b0-abf7-ab102cbcec49","status":200,"durationMs":27}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mrechaza el alta fuera de la ventana del evento
+[22m[39m{"level":"warn","msg":"request_error","requestId":"90f4ce87-479e-4c7c-a4e2-3df6581e3762","method":"POST","path":"/api/v1/public/registrations","status":409,"code":"REGISTRATION_OUTSIDE_WINDOW","error":{"name":"AppError","code":"REGISTRATION_OUTSIDE_WINDOW","message":"El registro esta fuera de la ventana de inscripcion."}}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mexige el flujo de aprobacion si hay registros confirmados
+[22m[39m{"level":"info","msg":"http_request","requestId":"4674b390-2f62-4954-ac27-6cd47241e39f","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":33}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mGET /users/{id}[2m > [22m[2mdevuelve la ficha administrativa
+[22m[39m{"level":"info","msg":"http_request","requestId":"49f0c23f-ec56-4520-8ab6-8e6697676d72","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":28}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza como acompanante el documento de un titular
+[22m[39m{"level":"info","msg":"http_request","requestId":"0b49d52b-e9a1-4315-90a3-24fdefb45944","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":60}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mrechaza el alta fuera de la ventana del evento
+[22m[39m{"level":"warn","msg":"http_request","requestId":"90f4ce87-479e-4c7c-a4e2-3df6581e3762","method":"POST","path":"/api/v1/public/registrations","status":409,"durationMs":26}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mrecorre el ciclo de vida y bloquea los saltos no permitidos
+[22m[39m{"level":"info","msg":"http_request","requestId":"0de53c26-8c44-4a31-980f-6e2bc8cfffde","method":"PATCH","path":"/api/v1/events/26621a1e-173c-43b0-abf7-ab102cbcec49","status":200,"durationMs":24}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mGET /users/{id}[2m > [22m[2mdevuelve la ficha administrativa
+[22m[39m{"level":"info","msg":"http_request","requestId":"48e017f0-1655-465d-9b93-3572b2c17d03","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":29}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mexige el flujo de aprobacion si hay registros confirmados
+[22m[39m{"level":"info","msg":"http_request","requestId":"61d8909a-f4d5-4c4d-a9ef-3b8fb855bd87","method":"POST","path":"/api/v1/participations","status":201,"durationMs":28}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mresponde 404 si la sede no existe y 422 si el cuerpo no es coherente
+[22m[39m{"level":"warn","msg":"request_error","requestId":"daf37341-0878-4a23-9d2b-7ab4887e4b25","method":"POST","path":"/api/v1/public/registrations","status":404,"code":"PARTICIPATION_NOT_FOUND","error":{"name":"AppError","code":"PARTICIPATION_NOT_FOUND","message":"La participacion no existe."}}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mresponde 404 si la sede no existe y 422 si el cuerpo no es coherente
+[22m[39m{"level":"warn","msg":"http_request","requestId":"daf37341-0878-4a23-9d2b-7ab4887e4b25","method":"POST","path":"/api/v1/public/registrations","status":404,"durationMs":9}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza como acompanante el documento de un titular
+[22m[39m{"level":"info","msg":"http_request","requestId":"83c94d58-f886-4674-bac3-af4ae205e898","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":51}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mrecorre el ciclo de vida y bloquea los saltos no permitidos
+[22m[39m{"level":"info","msg":"http_request","requestId":"bcf22d13-937e-400f-a0b0-47cf3801f44d","method":"PATCH","path":"/api/v1/events/26621a1e-173c-43b0-abf7-ab102cbcec49","status":200,"durationMs":36}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mGET /users/{id}[2m > [22m[2mdevuelve la ficha administrativa
+[22m[39m{"level":"info","msg":"http_request","requestId":"d212b7ad-48f4-43c4-bdc3-655f8554559d","method":"GET","path":"/api/v1/users/1be6f5c0-ae2e-45a8-8909-9fc6a24257e4","status":200,"durationMs":19}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mexige el flujo de aprobacion si hay registros confirmados
+[22m[39m{"level":"warn","msg":"request_error","requestId":"e6aef867-3646-4a0f-abdb-42ec04961987","method":"PATCH","path":"/api/v1/participations/7f846aef-a875-4445-a440-e8ed3877059b","status":409,"code":"CAPACITY_ADJUSTMENT_REQUIRED","error":{"name":"AppError","code":"CAPACITY_ADJUSTMENT_REQUIRED","message":"Con registros confirmados, el cupo solo cambia mediante una solicitud de ajuste aprobada."}}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mexige el flujo de aprobacion si hay registros confirmados
+[22m[39m{"level":"warn","msg":"http_request","requestId":"e6aef867-3646-4a0f-abdb-42ec04961987","method":"PATCH","path":"/api/v1/participations/7f846aef-a875-4445-a440-e8ed3877059b","status":409,"durationMs":19}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mresponde 404 si la sede no existe y 422 si el cuerpo no es coherente
+[22m[39m{"level":"warn","msg":"request_error","requestId":"19c20b6b-9b5a-4cc7-b8b5-503db8cd9d5a","method":"POST","path":"/api/v1/public/registrations","status":422,"code":"VALIDATION_ERROR","error":{"name":"AppError","code":"VALIDATION_ERROR","message":"La solicitud no cumple el formato esperado."}}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mresponde 404 si la sede no existe y 422 si el cuerpo no es coherente
+[22m[39m{"level":"warn","msg":"http_request","requestId":"19c20b6b-9b5a-4cc7-b8b5-503db8cd9d5a","method":"POST","path":"/api/v1/public/registrations","status":422,"durationMs":4}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mrecorre el ciclo de vida y bloquea los saltos no permitidos
+[22m[39m{"level":"info","msg":"http_request","requestId":"fd0da328-59d1-432c-b130-88aa1e842df1","method":"PATCH","path":"/api/v1/events/26621a1e-173c-43b0-abf7-ab102cbcec49","status":200,"durationMs":21}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mGET /users/{id}[2m > [22m[2mresponde USER_NOT_FOUND si la cuenta no existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"7f789801-ef17-4404-b060-cce8a1aa5e3e","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":26}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mcierra y reabre el registro de la sede
+[22m[39m{"level":"info","msg":"http_request","requestId":"a251dffb-52b0-466f-a903-af3859c3f9d1","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":25}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mresponde 404 si la sede no existe y 422 si el cuerpo no es coherente
+[22m[39m{"level":"warn","msg":"request_error","requestId":"8667738e-b860-443f-848b-6127e9b8e23a","method":"POST","path":"/api/v1/public/registrations","status":422,"code":"VALIDATION_ERROR","error":{"name":"AppError","code":"VALIDATION_ERROR","message":"El documento del acompanante necesita tipo y numero, o ninguno de los dos."}}
+
+[90mstderr[2m | tests/integration/public.routes.test.ts[2m > [22m[2malta desde el formulario publico[2m > [22m[2mresponde 404 si la sede no existe y 422 si el cuerpo no es coherente
+[22m[39m{"level":"warn","msg":"http_request","requestId":"8667738e-b860-443f-848b-6127e9b8e23a","method":"POST","path":"/api/v1/public/registrations","status":422,"durationMs":3}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza como acompanante el documento de otro acompanante
+[22m[39m{"level":"info","msg":"http_request","requestId":"8b7898f8-57ad-4b9c-90da-a14a6d64c7a6","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":38}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mrecorre el ciclo de vida y bloquea los saltos no permitidos
+[22m[39m{"level":"warn","msg":"request_error","requestId":"546cc75c-9380-47da-886d-b67f669875d5","method":"PATCH","path":"/api/v1/events/26621a1e-173c-43b0-abf7-ab102cbcec49","status":409,"code":"STATUS_TRANSITION_INVALID","error":{"name":"AppError","code":"STATUS_TRANSITION_INVALID","message":"Un evento en estado \"archived\" no puede pasar a \"published\"."}}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mGET /users/{id}[2m > [22m[2mresponde USER_NOT_FOUND si la cuenta no existe
+[22m[39m{"level":"warn","msg":"request_error","requestId":"a02242fa-c600-4be6-9bbd-8cb1aca4aea7","method":"GET","path":"/api/v1/users/00000000-0000-4000-8000-000000000000","status":404,"code":"USER_NOT_FOUND","error":{"name":"AppError","code":"USER_NOT_FOUND","message":"El usuario no existe."}}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mrecorre el ciclo de vida y bloquea los saltos no permitidos
+[22m[39m{"level":"warn","msg":"http_request","requestId":"546cc75c-9380-47da-886d-b67f669875d5","method":"PATCH","path":"/api/v1/events/26621a1e-173c-43b0-abf7-ab102cbcec49","status":409,"durationMs":16}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mGET /users/{id}[2m > [22m[2mresponde USER_NOT_FOUND si la cuenta no existe
+[22m[39m{"level":"warn","msg":"http_request","requestId":"a02242fa-c600-4be6-9bbd-8cb1aca4aea7","method":"GET","path":"/api/v1/users/00000000-0000-4000-8000-000000000000","status":404,"durationMs":16}
+
+ [31m❯[39m tests/integration/public.routes.test.ts [2m([22m[2m16 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 4965[2mms[22m[39m
+     [33m[2m✓[22m[39m no pide sesion y solo ofrece eventos publicados [33m 387[2mms[22m[39m
+     [32m✓[39m resuelve la ficha por slug o por identificador[32m 152[2mms[22m[39m
+     [32m✓[39m un evento no publicado responde 404 igual que uno inexistente[32m 226[2mms[22m[39m
+     [32m✓[39m deja fuera las sedes cerradas y los establecimientos apagados[32m 104[2mms[22m[39m
+     [32m✓[39m devuelve un evento publicado sin sedes abiertas con la lista vacia[32m 93[2mms[22m[39m
+     [33m[2m✓[22m[39m la sede trae su cupo disponible y la ventana heredada del evento [33m 606[2mms[22m[39m
+     [32m✓[39m registrationOpen es falso cuando el evento ya cerro su ventana[32m 163[2mms[22m[39m
+     [32m✓[39m la sede puede abrir su propia ventana sobre un evento ya cerrado[32m 166[2mms[22m[39m
+     [32m✓[39m filtra por texto libre y acota la pagina[32m 130[2mms[22m[39m
+     [33m[2m✓[22m[39m confirma el registro sin sesion y se marca con origen publico [33m 314[2mms[22m[39m
+     [33m[2m✓[22m[39m comparte las reglas de cupo de la mesa de registro [33m 317[2mms[22m[39m
+     [33m[2m✓[22m[39m rechaza el documento duplicado en el evento y da el detalle al frontend [33m 533[2mms[22m[39m
+[31m     [31m×[31m rechaza como acompanante un documento ya usado en el evento[39m[33m 333[2mms[22m[39m
+     [32m✓[39m rechaza el alta si la sede cerro, la sede esta apagada o el evento no esta publicado[32m 187[2mms[22m[39m
+     [32m✓[39m rechaza el alta fuera de la ventana del evento[32m 77[2mms[22m[39m
+     [33m[2m✓[22m[39m responde 404 si la sede no existe y 422 si el cuerpo no es coherente [33m 1167[2mms[22m[39m
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mcierra y reabre el registro de la sede
+[22m[39m{"level":"info","msg":"http_request","requestId":"005ef96a-11f5-4f44-a649-d18bd551e233","method":"POST","path":"/api/v1/participations","status":201,"durationMs":23}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza como acompanante el documento de otro acompanante
+[22m[39m{"level":"info","msg":"http_request","requestId":"72a4997f-b995-4641-8f1a-a5b7b5bddd77","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":40}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mno permite cambiar el slug
+[22m[39m{"level":"info","msg":"http_request","requestId":"97b7cfd6-2a2f-48ab-9bf7-15020d4837d3","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":24}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mactualiza el nombre y el rol
+[22m[39m{"level":"info","msg":"http_request","requestId":"bf729b69-8c97-4f91-8543-f0da63c7a306","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":22}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mcierra y reabre el registro de la sede
+[22m[39m{"level":"info","msg":"http_request","requestId":"030cda2f-77df-4dff-bf0b-7af69d57abb8","method":"PATCH","path":"/api/v1/participations/d7fc4ee4-9036-434c-833c-a785bf4381d6","status":200,"durationMs":27}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mno permite cambiar el slug
+[22m[39m{"level":"info","msg":"http_request","requestId":"d7a56384-65a1-4366-90de-a452fa160bb2","method":"POST","path":"/api/v1/events","status":201,"durationMs":19}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza como acompanante el documento de otro acompanante
+[22m[39m{"level":"warn","msg":"request_error","requestId":"17b47913-93b8-4fad-abed-56fab49bbc79","method":"POST","path":"/api/v1/registrations","status":409,"code":"DUPLICATE_DOCUMENT","error":{"name":"AppError","code":"DUPLICATE_DOCUMENT","message":"Este documento ya esta registrado como acompanante de otra persona."}}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mactualiza el nombre y el rol
+[22m[39m{"level":"info","msg":"http_request","requestId":"8103fec6-3508-4770-a4f8-9dc9f9553135","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":28}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mcierra y reabre el registro de la sede
+[22m[39m{"level":"info","msg":"http_request","requestId":"6686b9de-2472-461e-84ec-523170d6bcfe","method":"PATCH","path":"/api/v1/participations/d7fc4ee4-9036-434c-833c-a785bf4381d6","status":200,"durationMs":25}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza como acompanante el documento de otro acompanante
+[22m[39m{"level":"warn","msg":"http_request","requestId":"17b47913-93b8-4fad-abed-56fab49bbc79","method":"POST","path":"/api/v1/registrations","status":409,"durationMs":31}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mno permite cambiar el slug
+[22m[39m{"level":"warn","msg":"request_error","requestId":"a6eef045-8fc1-46e5-8dd7-9667f28eb56c","method":"PATCH","path":"/api/v1/events/11f409be-857a-4aaf-9969-dbd88a2bc779","status":422,"code":"VALIDATION_ERROR","error":{"name":"AppError","code":"VALIDATION_ERROR","message":"El slug de un evento no se puede cambiar."}}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mno permite cambiar el slug
+[22m[39m{"level":"warn","msg":"http_request","requestId":"a6eef045-8fc1-46e5-8dd7-9667f28eb56c","method":"PATCH","path":"/api/v1/events/11f409be-857a-4aaf-9969-dbd88a2bc779","status":422,"durationMs":18}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mactualiza el nombre y el rol
+[22m[39m{"level":"info","msg":"http_request","requestId":"6f187ae4-db7c-47e5-8800-f416a020839a","method":"PATCH","path":"/api/v1/users/95f13ef3-3759-444f-a10f-799dd816ce9e","status":200,"durationMs":25}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mcancela una sede sin registros y no la reabre
+[22m[39m{"level":"info","msg":"http_request","requestId":"d63be387-6386-4102-8526-4cebe5157801","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":27}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza el mismo documento dos veces dentro de una solicitud
+[22m[39m{"level":"info","msg":"http_request","requestId":"426806cd-df5f-47ab-966a-afd9399d46cd","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":25}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mvalida la ventana sobre el resultado combinado
+[22m[39m{"level":"info","msg":"http_request","requestId":"af723224-26d5-4cf0-aa77-f7f73856ef4d","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":28}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mrechaza el cambio que dejaria el sistema sin administradores
+[22m[39m{"level":"info","msg":"http_request","requestId":"95074621-c78f-40a7-adae-2b0b376697bf","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":25}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mvalida la ventana sobre el resultado combinado
+[22m[39m{"level":"info","msg":"http_request","requestId":"cb8ff887-fe93-45df-b553-e1c9577af6c1","method":"POST","path":"/api/v1/events","status":201,"durationMs":17}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mrechaza el cambio que dejaria el sistema sin administradores
+[22m[39m{"level":"warn","msg":"request_error","requestId":"d5c5dce4-08fd-4bd0-ba2c-78cadd267725","method":"PATCH","path":"/api/v1/users/231af8db-4375-4e0e-9fc6-5577cee5fa4d","status":409,"code":"LAST_ADMIN_PROTECTED","error":{"name":"AppError","code":"LAST_ADMIN_PROTECTED","message":"No se puede degradar ni desactivar al ultimo administrador activo."}}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mrechaza el cambio que dejaria el sistema sin administradores
+[22m[39m{"level":"warn","msg":"http_request","requestId":"d5c5dce4-08fd-4bd0-ba2c-78cadd267725","method":"PATCH","path":"/api/v1/users/231af8db-4375-4e0e-9fc6-5577cee5fa4d","status":409,"durationMs":24}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mcancela una sede sin registros y no la reabre
+[22m[39m{"level":"info","msg":"http_request","requestId":"f4c94f76-7aa3-4ea6-ba74-96e1b714c98f","method":"POST","path":"/api/v1/participations","status":201,"durationMs":40}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mvalida la ventana sobre el resultado combinado
+[22m[39m{"level":"warn","msg":"request_error","requestId":"86a16b48-adb0-4209-9caf-693e706887b8","method":"PATCH","path":"/api/v1/events/a145dd03-825a-441e-a319-ec4ece1bdce4","status":422,"code":"VALIDATION_ERROR","error":{"name":"AppError","code":"VALIDATION_ERROR","message":"El campo \"endsAt\" no puede ser anterior al inicio de la ventana."}}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mvalida la ventana sobre el resultado combinado
+[22m[39m{"level":"warn","msg":"http_request","requestId":"86a16b48-adb0-4209-9caf-693e706887b8","method":"PATCH","path":"/api/v1/events/a145dd03-825a-441e-a319-ec4ece1bdce4","status":422,"durationMs":18}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mrechaza el mismo documento dos veces dentro de una solicitud
+[22m[39m{"level":"info","msg":"http_request","requestId":"b3fb60f5-7469-4ba5-9605-8228b2bc9ccf","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":48}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mrechaza el cambio que dejaria el sistema sin administradores
+[22m[39m{"level":"warn","msg":"request_error","requestId":"23936414-f06c-45a4-ad17-48ab4fc689c6","method":"PATCH","path":"/api/v1/users/231af8db-4375-4e0e-9fc6-5577cee5fa4d","status":409,"code":"LAST_ADMIN_PROTECTED","error":{"name":"AppError","code":"LAST_ADMIN_PROTECTED","message":"No se puede degradar ni desactivar al ultimo administrador activo."}}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mcancela una sede sin registros y no la reabre
+[22m[39m{"level":"info","msg":"http_request","requestId":"94b06d87-6ddd-45d9-b298-3fc6940e20c2","method":"PATCH","path":"/api/v1/participations/9348de03-8c29-4767-bea9-4889ad6b5339","status":200,"durationMs":32}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mrechaza el cambio que dejaria el sistema sin administradores
+[22m[39m{"level":"warn","msg":"http_request","requestId":"23936414-f06c-45a4-ad17-48ab4fc689c6","method":"PATCH","path":"/api/v1/users/231af8db-4375-4e0e-9fc6-5577cee5fa4d","status":409,"durationMs":31}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mborra una fecha con `null`
+[22m[39m{"level":"info","msg":"http_request","requestId":"77774e99-bdd8-4464-8bc7-d0944697e0c4","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":29}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mcancela una sede sin registros y no la reabre
+[22m[39m{"level":"warn","msg":"request_error","requestId":"4c2a2d3c-6691-43ba-aa36-b169460df954","method":"PATCH","path":"/api/v1/participations/9348de03-8c29-4767-bea9-4889ad6b5339","status":409,"code":"STATUS_TRANSITION_INVALID","error":{"name":"AppError","code":"STATUS_TRANSITION_INVALID","message":"Una sede en estado \"cancelled\" no puede pasar a \"open\"."}}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mcancela una sede sin registros y no la reabre
+[22m[39m{"level":"warn","msg":"http_request","requestId":"4c2a2d3c-6691-43ba-aa36-b169460df954","method":"PATCH","path":"/api/v1/participations/9348de03-8c29-4767-bea9-4889ad6b5339","status":409,"durationMs":18}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mrechaza el cambio que dejaria el sistema sin administradores
+[22m[39m{"level":"info","msg":"http_request","requestId":"86f8410e-00dd-4f1d-b112-6e3547d5409b","method":"GET","path":"/api/v1/auth/me","status":200,"durationMs":13}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2madmite el mismo documento en eventos distintos
+[22m[39m{"level":"info","msg":"http_request","requestId":"cd8fc188-2a55-46fd-b322-063226c799ac","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":27}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mborra una fecha con `null`
+[22m[39m{"level":"info","msg":"http_request","requestId":"20a46115-06d5-44d9-98ad-5798b8c7df25","method":"POST","path":"/api/v1/events","status":201,"durationMs":23}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mno cancela una sede con registros confirmados
+[22m[39m{"level":"info","msg":"http_request","requestId":"31b3c4fd-e344-4103-a488-0a0b0eac17f0","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":29}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mpermite degradarse cuando queda otro administrador
+[22m[39m{"level":"info","msg":"http_request","requestId":"07bd058c-799f-4813-ab07-c7c9b794d3e0","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":30}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mborra una fecha con `null`
+[22m[39m{"level":"info","msg":"http_request","requestId":"69200cb5-305b-4b58-9be7-f25fa33500c7","method":"PATCH","path":"/api/v1/events/ec4262ab-1719-41b9-b710-8098df085cfc","status":200,"durationMs":26}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2madmite el mismo documento en eventos distintos
+[22m[39m{"level":"info","msg":"http_request","requestId":"bdcf8158-1d3a-44bb-a119-0e20c8be873c","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":43}
+
+[90mstdout[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mresponde EVENT_NOT_FOUND si el evento no existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"45606358-e645-4586-a5c3-98e7e4b5a005","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":26}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mpermite degradarse cuando queda otro administrador
+[22m[39m{"level":"info","msg":"http_request","requestId":"a4f019df-d596-4ee4-b53e-1375fcb84f13","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":26}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mno cancela una sede con registros confirmados
+[22m[39m{"level":"info","msg":"http_request","requestId":"abaeb4a7-3794-4258-8fc7-37db6f4e8646","method":"POST","path":"/api/v1/participations","status":201,"durationMs":29}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2madmite el mismo documento en eventos distintos
+[22m[39m{"level":"info","msg":"http_request","requestId":"1b38bf97-d067-4c7c-a099-e5f112ca066a","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":37}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mresponde EVENT_NOT_FOUND si el evento no existe
+[22m[39m{"level":"warn","msg":"request_error","requestId":"38b95285-226b-4b11-b7a5-1f77470b5aee","method":"PATCH","path":"/api/v1/events/00000000-0000-4000-8000-000000000000","status":404,"code":"EVENT_NOT_FOUND","error":{"name":"AppError","code":"EVENT_NOT_FOUND","message":"El evento no existe."}}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mno cancela una sede con registros confirmados
+[22m[39m{"level":"warn","msg":"request_error","requestId":"1a25f977-f078-4f8d-8361-860b8f0cd107","method":"PATCH","path":"/api/v1/participations/5cd589b8-46a5-41e8-9b3b-f3b5b36f7a15","status":409,"code":"PARTICIPATION_HAS_REGISTRATIONS","error":{"name":"AppError","code":"PARTICIPATION_HAS_REGISTRATIONS","message":"No se puede cancelar una sede con registros confirmados: cierrala para cortar el registro sin perderlos."}}
+
+[90mstderr[2m | tests/integration/events.routes.test.ts[2m > [22m[2mPATCH /events/{id}[2m > [22m[2mresponde EVENT_NOT_FOUND si el evento no existe
+[22m[39m{"level":"warn","msg":"http_request","requestId":"38b95285-226b-4b11-b7a5-1f77470b5aee","method":"PATCH","path":"/api/v1/events/00000000-0000-4000-8000-000000000000","status":404,"durationMs":17}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mno cancela una sede con registros confirmados
+[22m[39m{"level":"warn","msg":"http_request","requestId":"1a25f977-f078-4f8d-8361-860b8f0cd107","method":"PATCH","path":"/api/v1/participations/5cd589b8-46a5-41e8-9b3b-f3b5b36f7a15","status":409,"durationMs":15}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mpermite degradarse cuando queda otro administrador
+[22m[39m{"level":"info","msg":"http_request","requestId":"7c0877a0-6318-4b97-a90b-12640f09ca29","method":"PATCH","path":"/api/v1/users/830858e2-ee97-43fc-9de0-2d6d2c4f5404","status":200,"durationMs":25}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mmantiene la unicidad ante dos altas simultaneas con el mismo documento
+[22m[39m{"level":"info","msg":"http_request","requestId":"68716b6b-d7b7-4e4a-b36a-97fe86d2ab0b","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":24}
+
+ [32m✓[39m tests/integration/events.routes.test.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 6067[2mms[22m[39m
+     [33m[2m✓[22m[39m exige una sesion activa [33m 304[2mms[22m[39m
+     [33m[2m✓[22m[39m rechaza una zona horaria inexistente [33m 737[2mms[22m[39m
+     [33m[2m✓[22m[39m rechaza un cierre de registro anterior a su apertura [33m 368[2mms[22m[39m
+     [33m[2m✓[22m[39m lista con filtros, busqueda y paginacion [33m 434[2mms[22m[39m
+     [33m[2m✓[22m[39m responde EVENT_NOT_FOUND si el evento no existe [33m 392[2mms[22m[39m
+     [33m[2m✓[22m[39m actualiza solo los campos enviados [33m 311[2mms[22m[39m
+     [33m[2m✓[22m[39m recorre el ciclo de vida y bloquea los saltos no permitidos [33m 1355[2mms[22m[39m
+     [33m[2m✓[22m[39m responde EVENT_NOT_FOUND si el evento no existe [33m 480[2mms[22m[39m
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mpermite degradarse cuando queda otro administrador
+[22m[39m{"level":"warn","msg":"request_error","requestId":"c297f984-1fcb-4223-ba0f-838c3c5246d4","method":"GET","path":"/api/v1/users","status":403,"code":"FORBIDDEN","error":{"name":"AppError","code":"FORBIDDEN","message":"Tu rol no permite realizar esta operacion."}}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mpermite degradarse cuando queda otro administrador
+[22m[39m{"level":"warn","msg":"http_request","requestId":"c297f984-1fcb-4223-ba0f-838c3c5246d4","method":"GET","path":"/api/v1/users","status":403,"durationMs":11}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mno permite mover la participacion de evento o de sede
+[22m[39m{"level":"info","msg":"http_request","requestId":"b3bb2036-75b2-4a5f-81de-9b35d7de1e19","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":24}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mmantiene la unicidad ante dos altas simultaneas con el mismo documento
+[22m[39m{"level":"info","msg":"http_request","requestId":"d5410842-003d-4406-8612-8033b9dbc718","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":44}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mmantiene la unicidad ante dos altas simultaneas con el mismo documento
+[22m[39m{"level":"warn","msg":"request_error","requestId":"172093c9-dd89-4809-a6c1-d979cede429e","method":"POST","path":"/api/v1/registrations","status":409,"code":"DUPLICATE_DOCUMENT","error":{"name":"AppError","code":"DUPLICATE_DOCUMENT","message":"El documento ingresado ya se encuentra registrado en este evento."}}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mmantiene la unicidad ante dos altas simultaneas con el mismo documento
+[22m[39m{"level":"warn","msg":"http_request","requestId":"172093c9-dd89-4809-a6c1-d979cede429e","method":"POST","path":"/api/v1/registrations","status":409,"durationMs":34}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mrechaza un email ya en uso
+[22m[39m{"level":"info","msg":"http_request","requestId":"44b3b73f-1833-4abe-a744-f8f3961409ce","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":30}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mno permite mover la participacion de evento o de sede
+[22m[39m{"level":"info","msg":"http_request","requestId":"e67e4f20-092e-496d-8e22-195dbacd92c5","method":"POST","path":"/api/v1/participations","status":201,"durationMs":27}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mmantiene la unicidad ante dos altas simultaneas con el mismo documento
+[22m[39m{"level":"info","msg":"http_request","requestId":"62b99fca-d279-410b-9007-7b2cf5897ebf","method":"GET","path":"/api/v1/participations/d9d138c5-a2c8-4a47-8bfd-c7314b7212e9","status":200,"durationMs":24}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mrechaza un email ya en uso
+[22m[39m{"level":"info","msg":"http_request","requestId":"7b0a3403-35ca-4c38-b48d-60edfe5e153c","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":32}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mno permite mover la participacion de evento o de sede
+[22m[39m{"level":"warn","msg":"request_error","requestId":"3390863d-619e-46e8-bebe-7dc6f7503841","method":"PATCH","path":"/api/v1/participations/74be55fe-8612-475b-a6c5-075b5b9b77fa","status":422,"code":"VALIDATION_ERROR","error":{"name":"AppError","code":"VALIDATION_ERROR","message":"El campo \"establishmentId\" no se puede cambiar: la participacion une un evento con una sede."}}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mno permite mover la participacion de evento o de sede
+[22m[39m{"level":"warn","msg":"http_request","requestId":"3390863d-619e-46e8-bebe-7dc6f7503841","method":"PATCH","path":"/api/v1/participations/74be55fe-8612-475b-a6c5-075b5b9b77fa","status":422,"durationMs":34}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mrechaza un email ya en uso
+[22m[39m{"level":"warn","msg":"request_error","requestId":"5bb86bed-01fe-4cad-ad57-96452d187752","method":"PATCH","path":"/api/v1/users/11f4e2dd-40a3-4532-abff-1ae4cf7a0b62","status":409,"code":"EMAIL_ALREADY_USED","error":{"name":"AppError","code":"EMAIL_ALREADY_USED","message":"Ya existe un usuario con ese email."}}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mlibera el documento para todo el evento al cancelar
+[22m[39m{"level":"info","msg":"http_request","requestId":"23bd5eee-999c-4c52-b12b-5757ef4b82b7","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":34}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mrechaza un email ya en uso
+[22m[39m{"level":"warn","msg":"http_request","requestId":"5bb86bed-01fe-4cad-ad57-96452d187752","method":"PATCH","path":"/api/v1/users/11f4e2dd-40a3-4532-abff-1ae4cf7a0b62","status":409,"durationMs":32}
+
+[90mstdout[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mresponde PARTICIPATION_NOT_FOUND si la participacion no existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"de611a28-1b0f-4816-bdb8-571072408b55","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":32}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mresponde PARTICIPATION_NOT_FOUND si la participacion no existe
+[22m[39m{"level":"warn","msg":"request_error","requestId":"eb9f8996-d7c5-456a-9e47-a02856832c05","method":"PATCH","path":"/api/v1/participations/00000000-0000-4000-8000-000000000000","status":404,"code":"PARTICIPATION_NOT_FOUND","error":{"name":"AppError","code":"PARTICIPATION_NOT_FOUND","message":"La participacion no existe."}}
+
+[90mstderr[2m | tests/integration/participations.routes.test.ts[2m > [22m[2mPATCH /participations/{id}[2m > [22m[2mresponde PARTICIPATION_NOT_FOUND si la participacion no existe
+[22m[39m{"level":"warn","msg":"http_request","requestId":"eb9f8996-d7c5-456a-9e47-a02856832c05","method":"PATCH","path":"/api/v1/participations/00000000-0000-4000-8000-000000000000","status":404,"durationMs":22}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mlibera el documento para todo el evento al cancelar
+[22m[39m{"level":"info","msg":"http_request","requestId":"96fe74a8-0eeb-49bb-a363-1df2ba1f8b18","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":57}
+
+ [32m✓[39m tests/integration/participations.routes.test.ts [2m([22m[2m18 tests[22m[2m)[22m[33m 6617[2mms[22m[39m
+     [33m[2m✓[22m[39m exige una sesion activa [33m 302[2mms[22m[39m
+     [33m[2m✓[22m[39m responde PARTICIPATION_ALREADY_EXISTS si la sede ya participa [33m 420[2mms[22m[39m
+     [33m[2m✓[22m[39m rechaza una sede inactiva [33m 576[2mms[22m[39m
+     [33m[2m✓[22m[39m lista por evento con la sede resuelta y su cupo disponible [33m 325[2mms[22m[39m
+     [33m[2m✓[22m[39m filtra por estado y pagina el resultado [33m 510[2mms[22m[39m
+     [33m[2m✓[22m[39m devuelve la participacion y responde PARTICIPATION_NOT_FOUND si no existe [33m 398[2mms[22m[39m
+     [33m[2m✓[22m[39m exige el flujo de aprobacion si hay registros confirmados [33m 1144[2mms[22m[39m
+     [33m[2m✓[22m[39m no cancela una sede con registros confirmados [33m 572[2mms[22m[39m
+     [33m[2m✓[22m[39m no permite mover la participacion de evento o de sede [33m 391[2mms[22m[39m
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mrevoca las sesiones al desactivar la cuenta
+[22m[39m{"level":"info","msg":"http_request","requestId":"c49bd5c5-b578-4420-8d6c-a0ce1e7e3ba7","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":41}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mlibera el documento para todo el evento al cancelar
+[22m[39m{"level":"info","msg":"http_request","requestId":"f6b92ffb-d436-4d50-bd8c-6eb7df09f745","method":"POST","path":"/api/v1/registrations/fe01f7db-af15-4eb9-8c9f-12005c09c0ba/cancel","status":200,"durationMs":69}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mrevoca las sesiones al desactivar la cuenta
+[22m[39m{"level":"info","msg":"http_request","requestId":"9fe47d37-437a-4f1c-adbb-e595b7ea22d2","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":62}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mlibera el documento para todo el evento al cancelar
+[22m[39m{"level":"info","msg":"http_request","requestId":"f49daeea-e26f-43f1-bf0a-2fd5b0452040","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":43}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mrevoca las sesiones al desactivar la cuenta
+[22m[39m{"level":"info","msg":"http_request","requestId":"f2e639e0-f46d-44c7-8861-755e1bd91987","method":"PATCH","path":"/api/v1/users/46508f1a-ab30-41f0-8a96-5dcbb4002736","status":200,"durationMs":24}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mrevoca las sesiones al desactivar la cuenta
+[22m[39m{"level":"warn","msg":"request_error","requestId":"aec1631c-f189-4edc-b8f2-d52e03c6fb4e","method":"GET","path":"/api/v1/auth/me","status":401,"code":"SESSION_REVOKED","error":{"name":"AppError","code":"SESSION_REVOKED","message":"La sesion fue revocada. Inicia sesion de nuevo."}}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mrevoca las sesiones al desactivar la cuenta
+[22m[39m{"level":"warn","msg":"http_request","requestId":"aec1631c-f189-4edc-b8f2-d52e03c6fb4e","method":"GET","path":"/api/v1/auth/me","status":401,"durationMs":7}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mtraduce el choque del indice cuando el pre-chequeo no puede verlo
+[22m[39m{"level":"info","msg":"http_request","requestId":"78399900-17fa-4fc7-88b7-387794b39281","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":25}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mresponde USER_NOT_FOUND si la cuenta no existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"73e657d1-9045-4511-86da-64e74fe573b8","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":24}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mresponde 404 si la sede no existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"42826c92-08d6-4e71-9ebb-29f2ecfae294","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":23}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mresponde USER_NOT_FOUND si la cuenta no existe
+[22m[39m{"level":"warn","msg":"request_error","requestId":"bafe2aef-e30f-4664-a976-f825b1c38cb0","method":"PATCH","path":"/api/v1/users/00000000-0000-4000-8000-000000000000","status":404,"code":"USER_NOT_FOUND","error":{"name":"AppError","code":"USER_NOT_FOUND","message":"El usuario no existe."}}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPATCH /users/{id}[2m > [22m[2mresponde USER_NOT_FOUND si la cuenta no existe
+[22m[39m{"level":"warn","msg":"http_request","requestId":"bafe2aef-e30f-4664-a976-f825b1c38cb0","method":"PATCH","path":"/api/v1/users/00000000-0000-4000-8000-000000000000","status":404,"durationMs":14}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mresponde 404 si la sede no existe
+[22m[39m{"level":"warn","msg":"request_error","requestId":"b2ab7993-d8ea-41a2-ad34-8cd13815faa0","method":"POST","path":"/api/v1/registrations","status":404,"code":"PARTICIPATION_NOT_FOUND","error":{"name":"AppError","code":"PARTICIPATION_NOT_FOUND","message":"La participacion no existe."}}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2malta manual desde el panel[2m > [22m[2mresponde 404 si la sede no existe
+[22m[39m{"level":"warn","msg":"http_request","requestId":"b2ab7993-d8ea-41a2-ad34-8cd13815faa0","method":"POST","path":"/api/v1/registrations","status":404,"durationMs":15}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users/{id}/password[2m > [22m[2mrota la contrasena y revoca las sesiones de la cuenta
+[22m[39m{"level":"info","msg":"http_request","requestId":"dc951692-ff24-42f4-9c54-c64a8b91f26c","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":20}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users/{id}/password[2m > [22m[2mrota la contrasena y revoca las sesiones de la cuenta
+[22m[39m{"level":"info","msg":"http_request","requestId":"b6799df8-f27a-470b-8281-149d6e23ff4a","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":24}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mprecondiciones del alta[2m > [22m[2mrechaza el alta si el evento no esta publicado
+[22m[39m{"level":"info","msg":"http_request","requestId":"0e8728f3-1c61-42d9-8be9-fe24fec687ec","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":23}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mprecondiciones del alta[2m > [22m[2mrechaza el alta si el evento no esta publicado
+[22m[39m{"level":"warn","msg":"request_error","requestId":"4c4fe30e-4f4f-4837-b65f-25a1c212eb3e","method":"POST","path":"/api/v1/registrations","status":409,"code":"EVENT_NOT_REGISTRABLE","error":{"name":"AppError","code":"EVENT_NOT_REGISTRABLE","message":"El evento no admite registros: todavia no esta publicado o ya se cerro."}}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mprecondiciones del alta[2m > [22m[2mrechaza el alta si el evento no esta publicado
+[22m[39m{"level":"warn","msg":"http_request","requestId":"4c4fe30e-4f4f-4837-b65f-25a1c212eb3e","method":"POST","path":"/api/v1/registrations","status":409,"durationMs":23}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mprecondiciones del alta[2m > [22m[2mrechaza el alta si el evento no esta publicado
+[22m[39m{"level":"warn","msg":"request_error","requestId":"1bce8b95-427c-4d85-b94d-ec67e32c74b2","method":"POST","path":"/api/v1/registrations","status":409,"code":"EVENT_NOT_REGISTRABLE","error":{"name":"AppError","code":"EVENT_NOT_REGISTRABLE","message":"El evento no admite registros: todavia no esta publicado o ya se cerro."}}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mprecondiciones del alta[2m > [22m[2mrechaza el alta si el evento no esta publicado
+[22m[39m{"level":"warn","msg":"http_request","requestId":"1bce8b95-427c-4d85-b94d-ec67e32c74b2","method":"POST","path":"/api/v1/registrations","status":409,"durationMs":25}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mprecondiciones del alta[2m > [22m[2mrechaza el alta si el evento no esta publicado
+[22m[39m{"level":"warn","msg":"request_error","requestId":"4fb3c6cb-018c-484b-b26b-f837857ce822","method":"POST","path":"/api/v1/registrations","status":409,"code":"EVENT_NOT_REGISTRABLE","error":{"name":"AppError","code":"EVENT_NOT_REGISTRABLE","message":"El evento no admite registros: todavia no esta publicado o ya se cerro."}}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mprecondiciones del alta[2m > [22m[2mrechaza el alta si el evento no esta publicado
+[22m[39m{"level":"warn","msg":"http_request","requestId":"4fb3c6cb-018c-484b-b26b-f837857ce822","method":"POST","path":"/api/v1/registrations","status":409,"durationMs":23}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users/{id}/password[2m > [22m[2mrota la contrasena y revoca las sesiones de la cuenta
+[22m[39m{"level":"info","msg":"http_request","requestId":"b1a89b11-8418-4d9c-aa4f-82ccdd9783a4","method":"POST","path":"/api/v1/users/e8c5470e-0e65-49c1-80f2-fa9a92896363/password","status":200,"durationMs":205}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users/{id}/password[2m > [22m[2mrota la contrasena y revoca las sesiones de la cuenta
+[22m[39m{"level":"warn","msg":"request_error","requestId":"8894f7d1-6704-4210-ab8e-b7350808703e","method":"GET","path":"/api/v1/auth/me","status":401,"code":"SESSION_REVOKED","error":{"name":"AppError","code":"SESSION_REVOKED","message":"La sesion fue revocada. Inicia sesion de nuevo."}}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users/{id}/password[2m > [22m[2mrota la contrasena y revoca las sesiones de la cuenta
+[22m[39m{"level":"warn","msg":"http_request","requestId":"8894f7d1-6704-4210-ab8e-b7350808703e","method":"GET","path":"/api/v1/auth/me","status":401,"durationMs":6}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mprecondiciones del alta[2m > [22m[2mrechaza el alta si la sede cerro o su establecimiento esta inactivo
+[22m[39m{"level":"info","msg":"http_request","requestId":"acb24d1e-4b80-47d1-b981-302699649ef5","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":25}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mprecondiciones del alta[2m > [22m[2mrechaza el alta si la sede cerro o su establecimiento esta inactivo
+[22m[39m{"level":"warn","msg":"request_error","requestId":"64478f37-928a-4b26-a995-4ce71dd35d72","method":"POST","path":"/api/v1/registrations","status":409,"code":"PARTICIPATION_CLOSED","error":{"name":"AppError","code":"PARTICIPATION_CLOSED","message":"La sede no esta recibiendo registros."}}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mprecondiciones del alta[2m > [22m[2mrechaza el alta si la sede cerro o su establecimiento esta inactivo
+[22m[39m{"level":"warn","msg":"http_request","requestId":"64478f37-928a-4b26-a995-4ce71dd35d72","method":"POST","path":"/api/v1/registrations","status":409,"durationMs":25}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mprecondiciones del alta[2m > [22m[2mrechaza el alta si la sede cerro o su establecimiento esta inactivo
+[22m[39m{"level":"warn","msg":"request_error","requestId":"2f521f00-e79b-4a7b-bc76-9be505bdcbe4","method":"POST","path":"/api/v1/registrations","status":409,"code":"PARTICIPATION_CLOSED","error":{"name":"AppError","code":"PARTICIPATION_CLOSED","message":"La sede no esta recibiendo registros."}}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mprecondiciones del alta[2m > [22m[2mrechaza el alta si la sede cerro o su establecimiento esta inactivo
+[22m[39m{"level":"warn","msg":"http_request","requestId":"2f521f00-e79b-4a7b-bc76-9be505bdcbe4","method":"POST","path":"/api/v1/registrations","status":409,"durationMs":27}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mprecondiciones del alta[2m > [22m[2mrechaza el alta fuera de la ventana y respeta la que define la sede
+[22m[39m{"level":"info","msg":"http_request","requestId":"8d6d1cd3-3fbd-4e5e-ad17-99c4ec0972a6","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":24}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users/{id}/password[2m > [22m[2mrota la contrasena y revoca las sesiones de la cuenta
+[22m[39m{"level":"warn","msg":"request_error","requestId":"05c97369-05d9-48a5-8d38-97ccdb079e44","method":"POST","path":"/api/v1/auth/login","status":401,"code":"INVALID_CREDENTIALS","error":{"name":"AppError","code":"INVALID_CREDENTIALS","message":"Email o contrasena incorrectos."}}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mprecondiciones del alta[2m > [22m[2mrechaza el alta fuera de la ventana y respeta la que define la sede
+[22m[39m{"level":"warn","msg":"request_error","requestId":"142fa415-b4d2-4e0b-9cba-9d13175a4610","method":"POST","path":"/api/v1/registrations","status":409,"code":"REGISTRATION_OUTSIDE_WINDOW","error":{"name":"AppError","code":"REGISTRATION_OUTSIDE_WINDOW","message":"El registro esta fuera de la ventana de inscripcion."}}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users/{id}/password[2m > [22m[2mrota la contrasena y revoca las sesiones de la cuenta
+[22m[39m{"level":"warn","msg":"http_request","requestId":"05c97369-05d9-48a5-8d38-97ccdb079e44","method":"POST","path":"/api/v1/auth/login","status":401,"durationMs":217}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mprecondiciones del alta[2m > [22m[2mrechaza el alta fuera de la ventana y respeta la que define la sede
+[22m[39m{"level":"warn","msg":"http_request","requestId":"142fa415-b4d2-4e0b-9cba-9d13175a4610","method":"POST","path":"/api/v1/registrations","status":409,"durationMs":18}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mprecondiciones del alta[2m > [22m[2mrechaza el alta fuera de la ventana y respeta la que define la sede
+[22m[39m{"level":"info","msg":"http_request","requestId":"a6da3abf-60fa-439b-8ab8-fa3b7c8797da","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":29}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mprecondiciones del alta[2m > [22m[2mrechaza un cuerpo incoherente antes de tocar la sede
+[22m[39m{"level":"info","msg":"http_request","requestId":"66197c1d-7e31-468e-8653-7e08403de06d","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":25}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users/{id}/password[2m > [22m[2mrota la contrasena y revoca las sesiones de la cuenta
+[22m[39m{"level":"info","msg":"http_request","requestId":"0ea0413a-cd8c-4f86-951f-8911e3080f9b","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":195}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mprecondiciones del alta[2m > [22m[2mrechaza un cuerpo incoherente antes de tocar la sede
+[22m[39m{"level":"warn","msg":"request_error","requestId":"82508c39-cc1a-4dc4-a312-0e3752ae266f","method":"POST","path":"/api/v1/registrations","status":422,"code":"VALIDATION_ERROR","error":{"name":"AppError","code":"VALIDATION_ERROR","message":"El documento del acompanante necesita tipo y numero, o ninguno de los dos."}}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mprecondiciones del alta[2m > [22m[2mrechaza un cuerpo incoherente antes de tocar la sede
+[22m[39m{"level":"warn","msg":"http_request","requestId":"82508c39-cc1a-4dc4-a312-0e3752ae266f","method":"POST","path":"/api/v1/registrations","status":422,"durationMs":14}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users/{id}/password[2m > [22m[2mrechaza una contrasena que no cumple la politica
+[22m[39m{"level":"info","msg":"http_request","requestId":"fabd960d-9aa0-4a11-98a0-da73d48e6960","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":22}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users/{id}/password[2m > [22m[2mrechaza una contrasena que no cumple la politica
+[22m[39m{"level":"info","msg":"http_request","requestId":"66ed1eca-c799-42f9-8cde-349770a1779c","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":24}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mconsulta y listado de registros[2m > [22m[2mlista los registros y filtra por sede, texto libre y estado
+[22m[39m{"level":"info","msg":"http_request","requestId":"e054103a-4942-46f1-83d3-7ec28d29260e","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":23}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users/{id}/password[2m > [22m[2mrechaza una contrasena que no cumple la politica
+[22m[39m{"level":"warn","msg":"request_error","requestId":"9895ec8b-008f-4374-9788-48ea10859c76","method":"POST","path":"/api/v1/users/8abed92a-9245-4a78-b666-29bdf7a81cbc/password","status":422,"code":"VALIDATION_ERROR","error":{"name":"AppError","code":"VALIDATION_ERROR","message":"La solicitud no cumple el formato esperado."}}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users/{id}/password[2m > [22m[2mrechaza una contrasena que no cumple la politica
+[22m[39m{"level":"warn","msg":"http_request","requestId":"9895ec8b-008f-4374-9788-48ea10859c76","method":"POST","path":"/api/v1/users/8abed92a-9245-4a78-b666-29bdf7a81cbc/password","status":422,"durationMs":12}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mconsulta y listado de registros[2m > [22m[2mlista los registros y filtra por sede, texto libre y estado
+[22m[39m{"level":"info","msg":"http_request","requestId":"fe41351c-7935-47ac-88b2-6a6be28040da","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":44}
+
+[90mstdout[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users/{id}/password[2m > [22m[2mresponde USER_NOT_FOUND si la cuenta no existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"28294029-e5e1-4b0f-b2bc-12f672d20fa2","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":44}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mconsulta y listado de registros[2m > [22m[2mlista los registros y filtra por sede, texto libre y estado
+[22m[39m{"level":"info","msg":"http_request","requestId":"c68d1bb4-2abc-4bbc-8d17-9b8f182e3d81","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":47}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mconsulta y listado de registros[2m > [22m[2mlista los registros y filtra por sede, texto libre y estado
+[22m[39m{"level":"info","msg":"http_request","requestId":"59df43d5-42bf-4034-936e-beb162efc1f0","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":87}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mconsulta y listado de registros[2m > [22m[2mlista los registros y filtra por sede, texto libre y estado
+[22m[39m{"level":"info","msg":"http_request","requestId":"b26cd145-6322-4cde-a5cd-1fad27fcecc8","method":"GET","path":"/api/v1/registrations","status":200,"durationMs":27}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mconsulta y listado de registros[2m > [22m[2mlista los registros y filtra por sede, texto libre y estado
+[22m[39m{"level":"info","msg":"http_request","requestId":"7377a81a-9d6b-4d66-90a2-6a281161ba53","method":"GET","path":"/api/v1/registrations","status":200,"durationMs":22}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mconsulta y listado de registros[2m > [22m[2mlista los registros y filtra por sede, texto libre y estado
+[22m[39m{"level":"info","msg":"http_request","requestId":"94b6de09-79ca-491d-bacd-6fd5b3bf2808","method":"GET","path":"/api/v1/registrations","status":200,"durationMs":20}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users/{id}/password[2m > [22m[2mresponde USER_NOT_FOUND si la cuenta no existe
+[22m[39m{"level":"warn","msg":"request_error","requestId":"77e1a8b1-bd50-473d-b93b-4d59ccefa12d","method":"POST","path":"/api/v1/users/00000000-0000-4000-8000-000000000000/password","status":404,"code":"USER_NOT_FOUND","error":{"name":"AppError","code":"USER_NOT_FOUND","message":"El usuario no existe."}}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mconsulta y listado de registros[2m > [22m[2mlista los registros y filtra por sede, texto libre y estado
+[22m[39m{"level":"info","msg":"http_request","requestId":"770e1545-c4ca-4d13-90bd-c8c6dcb62569","method":"GET","path":"/api/v1/registrations","status":200,"durationMs":21}
+
+[90mstderr[2m | tests/integration/users.routes.test.ts[2m > [22m[2mPOST /users/{id}/password[2m > [22m[2mresponde USER_NOT_FOUND si la cuenta no existe
+[22m[39m{"level":"warn","msg":"http_request","requestId":"77e1a8b1-bd50-473d-b93b-4d59ccefa12d","method":"POST","path":"/api/v1/users/00000000-0000-4000-8000-000000000000/password","status":404,"durationMs":340}
+
+ [32m✓[39m tests/integration/users.routes.test.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 9530[2mms[22m[39m
+     [33m[2m✓[22m[39m exige una sesion activa [33m 304[2mms[22m[39m
+     [33m[2m✓[22m[39m pagina con offset sin repetir filas [33m 700[2mms[22m[39m
+     [33m[2m✓[22m[39m filtra por rol, estado y texto libre [33m 581[2mms[22m[39m
+     [33m[2m✓[22m[39m crea una cuenta capaz de iniciar sesion, con el email normalizado [33m 1070[2mms[22m[39m
+     [33m[2m✓[22m[39m rechaza un email ya registrado, sin importar las mayusculas [33m 633[2mms[22m[39m
+     [33m[2m✓[22m[39m devuelve la ficha administrativa [33m 1109[2mms[22m[39m
+     [33m[2m✓[22m[39m permite degradarse cuando queda otro administrador [33m 620[2mms[22m[39m
+     [33m[2m✓[22m[39m rechaza un email ya en uso [33m 432[2mms[22m[39m
+     [33m[2m✓[22m[39m revoca las sesiones al desactivar la cuenta [33m 763[2mms[22m[39m
+     [33m[2m✓[22m[39m rota la contrasena y revoca las sesiones de la cuenta [33m 1476[2mms[22m[39m
+     [33m[2m✓[22m[39m responde USER_NOT_FOUND si la cuenta no existe [33m 482[2mms[22m[39m
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mconsulta y listado de registros[2m > [22m[2macota la pagina con limit y offset
+[22m[39m{"level":"info","msg":"http_request","requestId":"de086e5d-5bf7-4a19-969d-1d33510a098a","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":28}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mconsulta y listado de registros[2m > [22m[2macota la pagina con limit y offset
+[22m[39m{"level":"info","msg":"http_request","requestId":"d0071b28-c854-428d-8cf1-32b10a9ae061","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":61}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mconsulta y listado de registros[2m > [22m[2macota la pagina con limit y offset
+[22m[39m{"level":"info","msg":"http_request","requestId":"cde0809c-a0c1-47a5-bf0f-3159055e0a94","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":54}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mconsulta y listado de registros[2m > [22m[2macota la pagina con limit y offset
+[22m[39m{"level":"info","msg":"http_request","requestId":"472090eb-b0f7-44ba-bc34-c5d56bfaca62","method":"GET","path":"/api/v1/registrations","status":200,"durationMs":31}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mconsulta y listado de registros[2m > [22m[2macota la pagina con limit y offset
+[22m[39m{"level":"info","msg":"http_request","requestId":"68009394-74a4-46eb-bfad-61a2568d1027","method":"GET","path":"/api/v1/registrations","status":200,"durationMs":32}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mconsulta y listado de registros[2m > [22m[2mdevuelve el registro con sus acompanantes y 404 si no existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"b670550a-ac86-462a-88e2-1f92bd039c6f","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":36}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mconsulta y listado de registros[2m > [22m[2mdevuelve el registro con sus acompanantes y 404 si no existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"711a7de6-4b9e-479b-92e3-ea399fe097ba","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":70}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mconsulta y listado de registros[2m > [22m[2mdevuelve el registro con sus acompanantes y 404 si no existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"7c9419c1-b042-4827-bfd1-6562622bbb4f","method":"GET","path":"/api/v1/registrations/41b8127b-1854-413f-99bf-e53565cb76fb","status":200,"durationMs":18}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mconsulta y listado de registros[2m > [22m[2mdevuelve el registro con sus acompanantes y 404 si no existe
+[22m[39m{"level":"warn","msg":"request_error","requestId":"2229b560-a0c1-4ccc-8541-d6609d090c37","method":"GET","path":"/api/v1/registrations/00000000-0000-4000-8000-000000000000","status":404,"code":"REGISTRATION_NOT_FOUND","error":{"name":"AppError","code":"REGISTRATION_NOT_FOUND","message":"El registro no existe."}}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mconsulta y listado de registros[2m > [22m[2mdevuelve el registro con sus acompanantes y 404 si no existe
+[22m[39m{"level":"warn","msg":"http_request","requestId":"2229b560-a0c1-4ccc-8541-d6609d090c37","method":"GET","path":"/api/v1/registrations/00000000-0000-4000-8000-000000000000","status":404,"durationMs":14}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mcancelacion desde el panel[2m > [22m[2mcancela, guarda el motivo y libera cupo y documento
+[22m[39m{"level":"info","msg":"http_request","requestId":"8f33208a-1749-484f-99e0-113717120887","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":22}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mcancelacion desde el panel[2m > [22m[2mcancela, guarda el motivo y libera cupo y documento
+[22m[39m{"level":"info","msg":"http_request","requestId":"6accee43-57a8-4da2-a929-0e9063397757","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":58}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mcancelacion desde el panel[2m > [22m[2mcancela, guarda el motivo y libera cupo y documento
+[22m[39m{"level":"info","msg":"http_request","requestId":"f965d35f-176c-4201-b1f8-f5f9d4add4c3","method":"POST","path":"/api/v1/registrations/8c3a61e4-173e-4bac-9558-d41c8e1e5a8d/cancel","status":200,"durationMs":42}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mcancelacion desde el panel[2m > [22m[2mcancela, guarda el motivo y libera cupo y documento
+[22m[39m{"level":"info","msg":"http_request","requestId":"e0ed49c6-9ce1-4858-94e2-d5e400877056","method":"GET","path":"/api/v1/participations/a2aaa52e-215b-4756-b1aa-d2b02182efab","status":200,"durationMs":25}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mcancelacion desde el panel[2m > [22m[2mcancela, guarda el motivo y libera cupo y documento
+[22m[39m{"level":"info","msg":"http_request","requestId":"2cb874fb-deaa-4de8-962a-67b6b26d515d","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":52}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mcancelacion desde el panel[2m > [22m[2mresponde 409 si el registro ya estaba cancelado
+[22m[39m{"level":"info","msg":"http_request","requestId":"5cafaba3-7bf8-4784-b500-638dd76cd38a","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":27}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mcancelacion desde el panel[2m > [22m[2mresponde 409 si el registro ya estaba cancelado
+[22m[39m{"level":"info","msg":"http_request","requestId":"58a5ad85-09fb-4797-a5f9-182e5c83cfb6","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":34}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mcancelacion desde el panel[2m > [22m[2mresponde 409 si el registro ya estaba cancelado
+[22m[39m{"level":"info","msg":"http_request","requestId":"c8c8cd3b-2d2f-4870-b759-21b2e9f8b3ff","method":"POST","path":"/api/v1/registrations/0745fde8-bd56-4552-b0b2-d28e5aff3296/cancel","status":200,"durationMs":22}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mcancelacion desde el panel[2m > [22m[2mresponde 409 si el registro ya estaba cancelado
+[22m[39m{"level":"warn","msg":"request_error","requestId":"04b70d1b-174e-4e44-aa19-e33f11473467","method":"POST","path":"/api/v1/registrations/0745fde8-bd56-4552-b0b2-d28e5aff3296/cancel","status":409,"code":"REGISTRATION_ALREADY_CANCELLED","error":{"name":"AppError","code":"REGISTRATION_ALREADY_CANCELLED","message":"El registro ya estaba cancelado."}}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mcancelacion desde el panel[2m > [22m[2mresponde 409 si el registro ya estaba cancelado
+[22m[39m{"level":"warn","msg":"http_request","requestId":"04b70d1b-174e-4e44-aa19-e33f11473467","method":"POST","path":"/api/v1/registrations/0745fde8-bd56-4552-b0b2-d28e5aff3296/cancel","status":409,"durationMs":23}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mcancelacion desde el panel[2m > [22m[2mexige el motivo y 404 si el registro no existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"e3bc024e-60e9-4be1-8964-1351e270b4f4","method":"POST","path":"/api/v1/auth/login","status":200,"durationMs":33}
+
+[90mstdout[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mcancelacion desde el panel[2m > [22m[2mexige el motivo y 404 si el registro no existe
+[22m[39m{"level":"info","msg":"http_request","requestId":"049bd559-d251-451c-93ff-99818e2bfb1b","method":"POST","path":"/api/v1/registrations","status":201,"durationMs":52}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mcancelacion desde el panel[2m > [22m[2mexige el motivo y 404 si el registro no existe
+[22m[39m{"level":"warn","msg":"request_error","requestId":"01b4e96b-aee7-46f5-ae3f-a04376210f45","method":"POST","path":"/api/v1/registrations/06f79f48-62ad-4f4c-8c8f-0eb0bb6eeac6/cancel","status":422,"code":"VALIDATION_ERROR","error":{"name":"AppError","code":"VALIDATION_ERROR","message":"La solicitud no cumple el formato esperado."}}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mcancelacion desde el panel[2m > [22m[2mexige el motivo y 404 si el registro no existe
+[22m[39m{"level":"warn","msg":"http_request","requestId":"01b4e96b-aee7-46f5-ae3f-a04376210f45","method":"POST","path":"/api/v1/registrations/06f79f48-62ad-4f4c-8c8f-0eb0bb6eeac6/cancel","status":422,"durationMs":20}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mcancelacion desde el panel[2m > [22m[2mexige el motivo y 404 si el registro no existe
+[22m[39m{"level":"warn","msg":"request_error","requestId":"f6bf09e8-0749-4b50-bb80-84a5d4150d1d","method":"POST","path":"/api/v1/registrations/00000000-0000-4000-8000-000000000000/cancel","status":404,"code":"REGISTRATION_NOT_FOUND","error":{"name":"AppError","code":"REGISTRATION_NOT_FOUND","message":"El registro no existe."}}
+
+[90mstderr[2m | tests/integration/registrations.routes.test.ts[2m > [22m[2mcancelacion desde el panel[2m > [22m[2mexige el motivo y 404 si el registro no existe
+[22m[39m{"level":"warn","msg":"http_request","requestId":"f6bf09e8-0749-4b50-bb80-84a5d4150d1d","method":"POST","path":"/api/v1/registrations/00000000-0000-4000-8000-000000000000/cancel","status":404,"durationMs":28}
+
+ [31m❯[39m tests/integration/registrations.routes.test.ts [2m([22m[2m26 tests[22m[2m | [22m[31m3 failed[39m[2m)[22m[33m 12724[2mms[22m[39m
+     [33m[2m✓[22m[39m exige una sesion activa para la mesa de registro [33m 473[2mms[22m[39m
+     [33m[2m✓[22m[39m deja al operador atender y buscar dentro de la jornada [33m 304[2mms[22m[39m
+     [33m[2m✓[22m[39m crea el registro con sus acompanantes y normaliza el documento [33m 433[2mms[22m[39m
+     [33m[2m✓[22m[39m reserva el cupo antes de escribir: el ultimo lugar es de uno solo [33m 796[2mms[22m[39m
+     [33m[2m✓[22m[39m devuelve el cupo del titular cuando falta el de acompanantes [33m 338[2mms[22m[39m
+     [33m[2m✓[22m[39m rechaza el documento duplicado sin gastar cupo y con el detalle del motivo [33m 347[2mms[22m[39m
+     [33m[2m✓[22m[39m rechaza el mismo documento en otra sede del evento [33m 523[2mms[22m[39m
+     [33m[2m✓[22m[39m rechaza como titular el documento que ya uso un acompanante [33m 402[2mms[22m[39m
+[31m     [31m×[31m rechaza como acompanante el documento de un titular[39m[33m 1224[2mms[22m[39m
+     [32m✓[39m rechaza como acompanante el documento de otro acompanante[32m 295[2mms[22m[39m
+[31m     [31m×[31m rechaza el mismo documento dos veces dentro de una solicitud[39m[32m 218[2mms[22m[39m
+     [33m[2m✓[22m[39m admite el mismo documento en eventos distintos [33m 619[2mms[22m[39m
+     [32m✓[39m mantiene la unicidad ante dos altas simultaneas con el mismo documento[32m 293[2mms[22m[39m
+     [33m[2m✓[22m[39m libera el documento para todo el evento al cancelar [33m 550[2mms[22m[39m
+[31m     [31m×[31m traduce el choque del indice cuando el pre-chequeo no puede verlo[39m[33m 459[2mms[22m[39m
+     [32m✓[39m responde 404 si la sede no existe[32m 92[2mms[22m[39m
+     [33m[2m✓[22m[39m rechaza el alta si el evento no esta publicado [33m 885[2mms[22m[39m
+     [32m✓[39m rechaza el alta si la sede cerro o su establecimiento esta inactivo[32m 228[2mms[22m[39m
+     [32m✓[39m rechaza el alta fuera de la ventana y respeta la que define la sede[32m 188[2mms[22m[39m
+     [32m✓[39m rechaza un cuerpo incoherente antes de tocar la sede[32m 199[2mms[22m[39m
+     [33m[2m✓[22m[39m lista los registros y filtra por sede, texto libre y estado [33m 604[2mms[22m[39m
+     [33m[2m✓[22m[39m acota la pagina con limit y offset [33m 698[2mms[22m[39m
+     [33m[2m✓[22m[39m devuelve el registro con sus acompanantes y 404 si no existe [33m 933[2mms[22m[39m
+     [33m[2m✓[22m[39m cancela, guarda el motivo y libera cupo y documento [33m 628[2mms[22m[39m
+     [33m[2m✓[22m[39m responde 409 si el registro ya estaba cancelado [33m 358[2mms[22m[39m
+     [33m[2m✓[22m[39m exige el motivo y 404 si el registro no existe [33m 619[2mms[22m[39m
+ [31m❯[39m tests/integration/registrations.repository.test.ts [2m([22m[2m8 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 731[2mms[22m[39m
+     [32m✓[39m crea el registro y sus acompanantes en un solo grupo[32m 88[2mms[22m[39m
+[31m     [31m×[31m reserva los documentos del titular y de los acompanantes con documento[39m[32m 92[2mms[22m[39m
+     [32m✓[39m es atomico: si un acompanante repite documento no queda ni el titular[32m 190[2mms[22m[39m
+[31m     [31m×[31m rechaza el mismo documento como titular en la misma sede[39m[32m 52[2mms[22m[39m
+     [32m✓[39m rechaza el documento repetido en otra sede del mismo evento[32m 78[2mms[22m[39m
+     [32m✓[39m rechaza como titular un documento que ya uso un acompanante del evento[32m 68[2mms[22m[39m
+     [32m✓[39m admite el mismo documento en eventos distintos[32m 65[2mms[22m[39m
+     [32m✓[39m libera los documentos al cancelar, tambien en otra sede del evento[32m 90[2mms[22m[39m
+[90mstderr[2m | tests/integration/routing.test.ts[2m > [22m[2mcontrato de la API[2m > [22m[2mresponde 404 con el sobre de error comun
+[22m[39m{"level":"warn","msg":"request_error","requestId":"35fa98db-1d68-4d6a-9ddf-e8296e8784df","method":"GET","path":"/api/v1/ruta-inexistente","status":404,"code":"ROUTE_NOT_FOUND","error":{"name":"AppError","code":"ROUTE_NOT_FOUND","message":"La ruta GET /api/v1/ruta-inexistente no existe."}}
+
+[90mstderr[2m | tests/integration/routing.test.ts[2m > [22m[2mcontrato de la API[2m > [22m[2mresponde 404 con el sobre de error comun
+[22m[39m{"level":"warn","msg":"http_request","requestId":"35fa98db-1d68-4d6a-9ddf-e8296e8784df","method":"GET","path":"/api/v1/ruta-inexistente","status":404,"durationMs":134}
+
+[90mstdout[2m | tests/integration/routing.test.ts[2m > [22m[2mcontrato de la API[2m > [22m[2mreutiliza un x-request-id valido y descarta uno invalido
+[22m[39m{"level":"info","msg":"http_request","requestId":"req-abc12345","method":"GET","path":"/api/v1/health","status":200,"durationMs":11}
+
+ [32m✓[39m tests/integration/catalog.repository.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 1103[2mms[22m[39m
+[90mstdout[2m | tests/integration/routing.test.ts[2m > [22m[2mcontrato de la API[2m > [22m[2mreutiliza un x-request-id valido y descarta uno invalido
+[22m[39m{"level":"info","msg":"http_request","requestId":"60dde609-5dab-4d61-a525-a7dc7abc15d0","method":"GET","path":"/api/v1/health","status":200,"durationMs":6}
+
+[90mstdout[2m | tests/integration/routing.test.ts[2m > [22m[2mcontrato de la API[2m > [22m[2maplica CORS solo a los origenes autorizados
+[22m[39m{"level":"info","msg":"http_request","requestId":"8874ccff-aa92-412f-8130-44b57945b3e8","method":"GET","path":"/api/v1/health","status":200,"durationMs":10}
+
+[90mstdout[2m | tests/integration/routing.test.ts[2m > [22m[2mcontrato de la API[2m > [22m[2maplica CORS solo a los origenes autorizados
+[22m[39m{"level":"info","msg":"http_request","requestId":"f0e5d0a0-dc91-4bda-80e4-3388e578def3","method":"GET","path":"/api/v1/health","status":200,"durationMs":6}
+
+[90mstdout[2m | tests/integration/routing.test.ts[2m > [22m[2mcontrato de la API[2m > [22m[2mpublica el documento OpenAPI con las rutas bajo el prefijo versionado
+[22m[39m{"level":"info","msg":"http_request","requestId":"a02210c7-5944-4c81-aa21-c2052e4c02cd","method":"GET","path":"/api/v1/openapi.json","status":200,"durationMs":124}
+
+[90mstdout[2m | tests/integration/routing.test.ts[2m > [22m[2mcontrato de la API[2m > [22m[2msirve la documentacion interactiva en /api/v1/docs
+[22m[39m{"level":"info","msg":"http_request","requestId":"55eb8c40-bcb7-44e3-8341-378ca0bc2426","method":"GET","path":"/api/v1/docs","status":200,"durationMs":3}
+
+ [32m✓[39m tests/integration/routing.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 985[2mms[22m[39m
+[90mstdout[2m | tests/integration/health.test.ts[2m > [22m[2mGET /api/v1/health[2m > [22m[2mresponde 200 con el estado del servicio y D1 operativo
+[22m[39m{"level":"info","msg":"http_request","requestId":"64155b96-a1bd-44ff-9ca5-e93b6a76e9a2","method":"GET","path":"/api/v1/health","status":200,"durationMs":10}
+
+ [32m✓[39m tests/integration/schema.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 378[2mms[22m[39m
+[90mstdout[2m | tests/integration/health.test.ts[2m > [22m[2mGET /api/v1/health[2m > [22m[2mincluye la cabecera x-request-id en la respuesta
+[22m[39m{"level":"info","msg":"http_request","requestId":"8b25d6a4-cc28-403d-be4d-95be0a0a7f4f","method":"GET","path":"/api/v1/health","status":200,"durationMs":5}
+
+ [32m✓[39m tests/integration/health.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 418[2mms[22m[39m
+     [33m[2m✓[22m[39m incluye la cabecera x-request-id en la respuesta [33m 317[2mms[22m[39m
+ [32m✓[39m tests/unit/catalog.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 110[2mms[22m[39m
+ [32m✓[39m tests/unit/password.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 44[2mms[22m[39m
+ [32m✓[39m tests/unit/encoding.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m tests/unit/registrations.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m tests/unit/auth-roles.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m tests/unit/session.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m tests/unit/error-handler.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m tests/unit/constraints.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m tests/unit/users.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 6 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m tests/integration/public.routes.test.ts[2m > [22malta desde el formulario publico[2m > [22mrechaza como acompanante un documento ya usado en el evento
+[31m[1mAssertionError[22m: expected 201 to be 409 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 409[39m
+[31m+ 201[39m
+
+[36m [2m❯[22m tests/integration/public.routes.test.ts:[2m410:30[22m[39m
+    [90m408|[39m     )[33m;[39m
+    [90m409|[39m
+    [90m410|[39m     [34mexpect[39m(duplicate[33m.[39mstatus)[33m.[39m[34mtoBe[39m([34m409[39m)[33m;[39m
+    [90m   |[39m                              [31m^[39m
+    [90m411|[39m     [35mconst[39m error [33m=[39m [35mawait[39m duplicate[33m.[39mjson[33m<[39m[33mErrorBody[39m[33m>[39m()[33m;[39m
+    [90m412|[39m     [34mexpect[39m(error[33m.[39merror[33m.[39mcode)[33m.[39m[34mtoBe[39m([32m'DUPLICATE_DOCUMENT'[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/integration/registrations.repository.test.ts[2m > [22mregistrations.repository[2m > [22mreserva los documentos del titular y de los acompanantes con documento
+[31m[1mAssertionError[22m: expected [ [ 'companion', '99.001' ], …(1) ] to deeply equal [ [ 'companion', '99001' ], …(1) ][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[33m@@ -1,9 +1,9 @@[39m
+[2m  [[22m
+[2m    [[22m
+[2m      "companion",[22m
+[32m-     "99001",[39m
+[31m+     "99.001",[39m
+[2m    ],[22m
+[2m    [[22m
+[2m      "holder",[22m
+[2m      "10203040",[22m
+[2m    ],[22m
+
+[36m [2m❯[22m tests/integration/registrations.repository.test.ts:[2m171:70[22m[39m
+    [90m169|[39m     [35mconst[39m rows [33m=[39m [35mawait[39m db[33m.[39m[34mselect[39m()[33m.[39m[35mfrom[39m(registrationDocuments)[33m;[39m
+    [90m170|[39m     [34mexpect[39m(rows)[33m.[39m[34mtoHaveLength[39m([34m2[39m)[33m;[39m
+    [90m171|[39m     expect(rows.map((row) => [row.role, row.documentNumber]).sort()).t…
+    [90m   |[39m                                                                      [31m^[39m
+    [90m172|[39m       [[32m'companion'[39m[33m,[39m [32m'99001'[39m][33m,[39m
+    [90m173|[39m       [[32m'holder'[39m[33m,[39m [32m'10203040'[39m][33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/integration/registrations.repository.test.ts[2m > [22mregistrations.repository[2m > [22mrechaza el mismo documento como titular en la misma sede
+[31m[1mError[22m: La operacion debia fallar y no lo hizo.[39m
+[36m [2m❯[22m expectAppError tests/integration/registrations.repository.test.ts:[2m35:9[22m[39m
+    [90m 33|[39m     [35mthrow[39m error[33m;[39m
+    [90m 34|[39m   }
+    [90m 35|[39m   [35mthrow[39m [35mnew[39m [33mError[39m([32m'La operacion debia fallar y no lo hizo.'[39m)[33m;[39m
+    [90m   |[39m         [31m^[39m
+    [90m 36|[39m }
+    [90m 37|[39m
+[90m [2m❯[22m tests/integration/registrations.repository.test.ts:[2m212:19[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/integration/registrations.routes.test.ts[2m > [22malta manual desde el panel[2m > [22mrechaza como acompanante el documento de un titular
+[31m[1mAssertionError[22m: expected 201 to be 409 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 409[39m
+[31m+ 201[39m
+
+[36m [2m❯[22m tests/integration/registrations.routes.test.ts:[2m423:30[22m[39m
+    [90m421|[39m     )[33m;[39m
+    [90m422|[39m
+    [90m423|[39m     [34mexpect[39m(duplicate[33m.[39mstatus)[33m.[39m[34mtoBe[39m([34m409[39m)[33m;[39m
+    [90m   |[39m                              [31m^[39m
+    [90m424|[39m     [35mconst[39m error [33m=[39m [35mawait[39m [34merrorBodyOf[39m(duplicate)[33m;[39m
+    [90m425|[39m     [34mexpect[39m(error[33m.[39mcode)[33m.[39m[34mtoBe[39m([32m'DUPLICATE_DOCUMENT'[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/integration/registrations.routes.test.ts[2m > [22malta manual desde el panel[2m > [22mrechaza el mismo documento dos veces dentro de una solicitud
+[31m[1mAssertionError[22m: expected 201 to be 422 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 422[39m
+[31m+ 201[39m
+
+[36m [2m❯[22m tests/integration/registrations.routes.test.ts:[2m485:29[22m[39m
+    [90m483|[39m     )[33m;[39m
+    [90m484|[39m
+    [90m485|[39m     [34mexpect[39m(response[33m.[39mstatus)[33m.[39m[34mtoBe[39m([34m422[39m)[33m;[39m
+    [90m   |[39m                             [31m^[39m
+    [90m486|[39m     [35mconst[39m error [33m=[39m [35mawait[39m [34merrorBodyOf[39m(response)[33m;[39m
+    [90m487|[39m     [34mexpect[39m(error[33m.[39mcode)[33m.[39m[34mtoBe[39m([32m'VALIDATION_ERROR'[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/integration/registrations.routes.test.ts[2m > [22malta manual desde el panel[2m > [22mtraduce el choque del indice cuando el pre-chequeo no puede verlo
+[31m[1mError[22m: D1_TYPE_ERROR: Type 'object' not supported for value 'Thu Oct 09 2025 03:53:20 GMT-0500 (hora estándar de Colombia)'[39m
+[90m [2m❯[22m cloudflare-internal:d1-api:[2m423:19[22m[39m
+[90m [2m❯[22m D1PreparedStatement.bind cloudflare-internal:d1-api:[2m395:42[22m[39m
+[36m [2m❯[22m tests/integration/registrations.routes.test.ts:[2m556:8[22m[39m
+
+
+[31m[1mCaused by: Error[22m: Type 'object' not supported for value 'Thu Oct 09 2025 03:53:20 GMT-0500 (hora estándar de Colombia)'[39m
+[90m [2m❯[22m cloudflare-internal:d1-api:[2m424:24[22m[39m
+[90m [2m❯[22m D1PreparedStatement.bind cloudflare-internal:d1-api:[2m395:42[22m[39m
+[36m [2m❯[22m tests/integration/registrations.routes.test.ts:[2m556:8[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m3 failed[39m[22m[2m | [22m[1m[32m18 passed[39m[22m[90m (21)[39m
+[2m      Tests [22m [1m[31m6 failed[39m[22m[2m | [22m[1m[32m243 passed[39m[22m[90m (249)[39m
+[2m   Start at [22m 13:55:16
+[2m   Duration [22m 59.68s[2m (transform 64.01s, setup 242.67s, import 5.42s, tests 49.79s, environment 10ms)[22m
+
+TESTRUN-DONE 

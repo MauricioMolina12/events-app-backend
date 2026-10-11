@@ -1,0 +1,58 @@
+
+> events@0.1.0 pretest
+> npm run cf-typegen
+
+
+> events@0.1.0 cf-typegen
+> wrangler types --env-interface CloudflareBindings
+
+
+ ⛅️ wrangler 4.147.0
+────────────────────
+Generating project types...
+
+interface __BaseEnv_CloudflareBindings {
+	DB: D1Database;
+	ENVIRONMENT: "production" | "local";
+	CORS_ORIGINS: "https://app.example.com" | "http://localhost:5173,http://localhost:8788";
+	PBKDF2_ITERATIONS: "210000";
+	SESSION_TTL_HOURS: "12";
+	SESSION_COOKIE_NAME: "events_session";
+	AUTH_MAX_FAILED_ATTEMPTS: "5";
+	AUTH_LOCKOUT_MINUTES: "15";
+}
+declare namespace Cloudflare {
+	interface GlobalProps {
+		mainModule: typeof import("./src/index");
+	}
+	interface ProductionEnv {
+		DB: D1Database;
+		ENVIRONMENT: "production";
+		CORS_ORIGINS: "https://app.example.com";
+		PBKDF2_ITERATIONS: "210000";
+		SESSION_TTL_HOURS: "12";
+		SESSION_COOKIE_NAME: "events_session";
+		AUTH_MAX_FAILED_ATTEMPTS: "5";
+		AUTH_LOCKOUT_MINUTES: "15";
+	}
+	interface Env extends __BaseEnv_CloudflareBindings {}
+}
+interface CloudflareBindings extends __BaseEnv_CloudflareBindings {}
+type StringifyValues<EnvType extends Record<string, unknown>> = {
+	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
+};
+declare namespace NodeJS {
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "ENVIRONMENT" | "CORS_ORIGINS" | "PBKDF2_ITERATIONS" | "SESSION_TTL_HOURS" | "SESSION_COOKIE_NAME" | "AUTH_MAX_FAILED_ATTEMPTS" | "AUTH_LOCKOUT_MINUTES">> {}
+}
+
+Generating runtime types...
+
+Runtime types generated.
+
+
+✨ Types written to worker-configuration.d.ts
+
+📖 Read about runtime types
+https://developers.cloudflare.com/workers/languages/typescript/#generate-types
+📣 Remember to rerun 'wrangler types' after you change your wrangler.jsonc file.
+

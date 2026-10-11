@@ -20,7 +20,7 @@ describe('traduccion de violaciones de restricciones', () => {
       "D1_ERROR: UNIQUE constraint failed: index 'registrations_participation_document_unique'",
     );
 
-    expect(resolveConstraintViolation(error)?.code).toBe(ErrorCode.DUPLICATE_REGISTRATION);
+    expect(resolveConstraintViolation(error)?.code).toBe(ErrorCode.DUPLICATE_DOCUMENT);
     expect(resolveConstraintViolation(error)?.status).toBe(409);
   });
 
@@ -36,8 +36,22 @@ describe('traduccion de violaciones de restricciones', () => {
       'D1_ERROR: UNIQUE constraint failed: registrations.participation_id, registrations.document_type, registrations.document_number: SQLITE_CONSTRAINT (extended: SQLITE_CONSTRAINT_UNIQUE)',
     );
 
-    expect(resolveConstraintViolation(error)?.code).toBe(ErrorCode.DUPLICATE_REGISTRATION);
+    expect(resolveConstraintViolation(error)?.code).toBe(ErrorCode.DUPLICATE_DOCUMENT);
     expect(resolveConstraintViolation(error)?.status).toBe(409);
+  });
+
+  it('reconoce el indice unico del evento, por nombre y por columnas', () => {
+    const byIndex = new Error(
+      "D1_ERROR: UNIQUE constraint failed: index 'registration_documents_event_document_unique'",
+    );
+    const byColumns = new Error(
+      'D1_ERROR: UNIQUE constraint failed: registration_documents.event_id, registration_documents.document_type, registration_documents.document_number: SQLITE_CONSTRAINT (extended: SQLITE_CONSTRAINT_UNIQUE)',
+    );
+
+    // Es la restriccion que hace cumplir "un documento por evento" en la carrera.
+    expect(resolveConstraintViolation(byIndex)?.code).toBe(ErrorCode.DUPLICATE_DOCUMENT);
+    expect(resolveConstraintViolation(byIndex)?.status).toBe(409);
+    expect(resolveConstraintViolation(byColumns)?.code).toBe(ErrorCode.DUPLICATE_DOCUMENT);
   });
 
   it('traduce los CHECK de cupo a su codigo de negocio', () => {

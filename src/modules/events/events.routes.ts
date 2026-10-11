@@ -1,4 +1,6 @@
 import { OpenAPIHono, createRoute, z, type RouteHandler } from '@hono/zod-openapi';
+import { AppError } from '../../core/errors/app-error';
+import { ErrorCode } from '../../core/errors/error-codes';
 import { errorResponse } from '../../core/http/error-response';
 import { apiSuccess } from '../../core/http/responses';
 import type { AppEnv } from '../../core/types/context';
@@ -6,6 +8,9 @@ import { createDb } from '../../db/client';
 import { fromIsoString } from '../../db/helpers';
 import { EVENT_STATUSES } from '../../db/schema';
 import { currentAuthUser, requireAuth, requireRole } from '../auth/auth.middleware';
+import { getUserById } from '../users/users.service';
+import { assertCanManageEvent } from './event-access';
+import { EVENT_CAPACITY_MAX } from './event-capacity';
 import {
   SLUG_MAX_LENGTH,
   SLUG_MIN_LENGTH,
@@ -17,6 +22,7 @@ import {
   EVENT_LIST_DEFAULT_LIMIT,
   EVENT_LIST_MAX_LIMIT,
   createEvent,
+  getEventById,
   getEventByReference,
   listEventCatalog,
   updateEvent,
@@ -25,10 +31,11 @@ import {
 /**
  * Rutas del catalogo de eventos.
  *
- * La lectura la comparten `admin` y `operator` (el operador necesita el catalogo
- * para preparar la jornada); la escritura es exclusiva del `admin`. El catalogo
- * publico, limitado a eventos publicados y con la disponibilidad de cupos, llega
- * con el registro publico de la Fase 5.
+ * La lectura la comparten `admin` y `operator`. El operador solo ve y edita los
+ * eventos que un administrador le asigno (`createdBy`). Crear un evento es
+ * exclusivo del administrador.
+ * El catalogo publico, limitado a eventos publicados y con la disponibilidad de
+ * cupos, llega con el registro publico de la Fase 5.
  */
 
 /** Fecha ISO-8601 en UTC; `null` limpia el campo. */
@@ -108,8 +115,8 @@ const listEventsRoute = createRoute({
     'por estado y texto libre. `meta.total` cuenta todas las filas que cumplen los',
     'filtros, no solo las de la pagina.',
     '',
-    'Al operador le sirve para consultar la jornada; las altas y los cambios son',
-    'exclusivos del administrador.',
+    'El operador solo recibe los eventos cuyo dueno es el (`createdBy`). El',
+    'administrador opera todo el catalogo.',
   ].join('\n'),
   request: { query: listEventsQuerySchema },
   responses: {
@@ -123,7 +130,12 @@ const listEventsRoute = createRoute({
 });
 
 const listEventsHandler: RouteHandler<typeof listEventsRoute, AppEnv> = async (c) => {
-  const page = await listEventCatalog(createDb(c.env), c.req.valid('query'));
+  const actor = currentAuthUser(c);
+  const query = c.req.valid('query');
+  const page = await listEventCatalog(createDb(c.env), {
+    ...query,
+    createdBy: actor.role === 'operator' ? actor.id : undefined,
+  });
 
   return c.json(
     apiSuccess(page.items.map(toEvent), {
@@ -159,7 +171,7 @@ const getEventRoute = createRoute({
 
 const getEventHandler: RouteHandler<typeof getEventRoute, AppEnv> = async (c) => {
   const event = await getEventByReference(createDb(c.env), c.req.valid('param').idOrSlug);
-
+  assertCanManageEvent(currentAuthUser(c), event);
   return c.json(apiSuccess(toEvent(event)), 200);
 };
 
@@ -179,7 +191,20 @@ const createEventBodySchema = z
     endsAt: eventDateSchema,
     registrationOpensAt: eventDateSchema,
     registrationClosesAt: eventDateSchema,
+    capacity: z.number().int().min(0).max(EVENT_CAPACITY_MAX).openapi({
+      example: 200,
+      description:
+        'Cupo general del evento. La suma de titulares y acompanantes de las sedes no puede superarlo.',
+    }),
     status: z.enum(EVENT_STATUSES).optional(),
+    ownerId: z
+      .string()
+      .min(1)
+      .optional()
+      .openapi({
+        description:
+          'Operador activo al que queda asignado el evento. Si se omite, el dueno es el administrador que lo crea.',
+      }),
   })
   .openapi('CreateEventRequest');
 
@@ -197,8 +222,8 @@ const createEventRoute = createRoute({
     'esperado, si la zona horaria no existe o si una ventana de tiempo esta',
     'invertida (`endsAt` antes de `startsAt`, o cierre de registro antes de la',
     'apertura); 409 con `STATUS_TRANSITION_INVALID` si se intenta crear el evento',
-    'directamente en `closed`; y 409 con `EVENT_SLUG_ALREADY_USED` si el slug ya',
-    'existe.',
+    'directamente en `closed`; 409 con `EVENT_SLUG_ALREADY_USED` si el slug ya',
+    'existe; y `capacity` es el techo de personas que se reparte entre las sedes.',
   ].join('\n'),
   request: {
     body: {
@@ -222,7 +247,8 @@ const createEventRoute = createRoute({
 
 const createEventHandler: RouteHandler<typeof createEventRoute, AppEnv> = async (c) => {
   const body = c.req.valid('json');
-  const event = await createEvent(createDb(c.env), {
+  const db = createDb(c.env);
+  const event = await createEvent(db, {
     slug: body.slug,
     name: body.name,
     description: body.description ?? null,
@@ -231,8 +257,9 @@ const createEventHandler: RouteHandler<typeof createEventRoute, AppEnv> = async 
     endsAt: toDateOrNull(body.endsAt),
     registrationOpensAt: toDateOrNull(body.registrationOpensAt),
     registrationClosesAt: toDateOrNull(body.registrationClosesAt),
+    capacity: body.capacity,
     status: body.status,
-    createdBy: currentAuthUser(c).id,
+    createdBy: await resolveEventOwner(db, body.ownerId, currentAuthUser(c).id),
   });
 
   return c.json(apiSuccess(toEvent(event)), 201);
@@ -248,6 +275,7 @@ const updateEventBodySchema = z
     endsAt: eventDateSchema,
     registrationOpensAt: eventDateSchema,
     registrationClosesAt: eventDateSchema,
+    capacity: z.number().int().min(0).max(EVENT_CAPACITY_MAX).optional(),
     status: z.enum(EVENT_STATUSES).optional(),
   })
   .openapi('UpdateEventRequest');
@@ -256,7 +284,7 @@ const updateEventRoute = createRoute({
   method: 'patch',
   path: '/events/{id}',
   tags: ['Eventos'],
-  middleware: [requireAuth, requireRole('admin')],
+  middleware: [requireAuth, requireRole('admin', 'operator')],
   summary: 'Actualiza un evento',
   description: [
     'Modifica los campos indicados; los ausentes se mantienen y `null` limpia una',
@@ -266,7 +294,8 @@ const updateEventRoute = createRoute({
     'Los cambios de estado siguen el ciclo de vida `draft -> published -> closed ->',
     'archived` (reabrir el registro es `closed -> published`); `archived` es',
     'terminal y cualquier salto no admitido responde 409 con',
-    '`STATUS_TRANSITION_INVALID`.',
+    '`STATUS_TRANSITION_INVALID`. Bajar `capacity` por debajo de lo ya asignado',
+    'a las sedes responde 409 con `EVENT_CAPACITY_EXCEEDED`.',
   ].join('\n'),
   request: {
     params: eventIdParamSchema,
@@ -281,16 +310,23 @@ const updateEventRoute = createRoute({
       content: { 'application/json': { schema: eventResponseSchema } },
     },
     401: errorResponse('Sin sesion activa.'),
-    403: errorResponse('La cuenta autenticada no es administradora.'),
+    403: errorResponse(
+      'La cuenta no es administradora o el operador no es dueno de este evento.',
+    ),
     404: errorResponse('El evento no existe (`EVENT_NOT_FOUND`).'),
-    409: errorResponse('El cambio de estado no esta permitido (`STATUS_TRANSITION_INVALID`).'),
+    409: errorResponse(
+      'El cambio de estado no esta permitido (`STATUS_TRANSITION_INVALID`) o el cupo general queda por debajo de lo asignado (`EVENT_CAPACITY_EXCEEDED`).',
+    ),
     422: errorResponse('El cuerpo no cumple el formato o la coherencia esperada.'),
   },
 });
 
 const updateEventHandler: RouteHandler<typeof updateEventRoute, AppEnv> = async (c) => {
   const body = c.req.valid('json');
-  const event = await updateEvent(createDb(c.env), c.req.valid('param').id, {
+  const db = createDb(c.env);
+  const existing = await getEventById(db, c.req.valid('param').id);
+  assertCanManageEvent(currentAuthUser(c), existing);
+  const event = await updateEvent(db, existing.id, {
     slug: body.slug,
     name: body.name,
     description: body.description,
@@ -299,11 +335,36 @@ const updateEventHandler: RouteHandler<typeof updateEventRoute, AppEnv> = async 
     endsAt: toDateOrNull(body.endsAt),
     registrationOpensAt: toDateOrNull(body.registrationOpensAt),
     registrationClosesAt: toDateOrNull(body.registrationClosesAt),
+    capacity: body.capacity,
     status: body.status,
   });
 
   return c.json(apiSuccess(toEvent(event)), 200);
 };
+
+/**
+ * El evento queda a nombre del operador elegido. Sin `ownerId`, el dueno es
+ * el administrador que lo crea.
+ */
+async function resolveEventOwner(
+  db: ReturnType<typeof createDb>,
+  ownerId: string | undefined,
+  adminId: string,
+): Promise<string> {
+  if (ownerId === undefined) {
+    return adminId;
+  }
+
+  const owner = await getUserById(db, ownerId);
+  if (owner.role !== 'operator' || owner.status !== 'active') {
+    throw AppError.badRequest(
+      ErrorCode.VALIDATION_ERROR,
+      'El cliente del evento debe ser un operador activo.',
+    );
+  }
+
+  return owner.id;
+}
 
 /** Convierte un ISO-8601 del cuerpo a `Date`; conserva `null` y `undefined`. */
 function toDateOrNull(value: string | null | undefined): Date | null | undefined {

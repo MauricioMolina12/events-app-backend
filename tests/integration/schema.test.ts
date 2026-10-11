@@ -21,10 +21,13 @@ const EXPECTED_TABLES = [
   'qr_codes',
   'qr_deliveries',
   'registration_companions',
+  'registration_documents',
   'registrations',
   'sessions',
   'shift_assignments',
   'shifts',
+  'turn_counters',
+  'turns',
 ] as const;
 
 /** Indices que solo valen si son parciales: si perdieran el `WHERE`, el invariante caeria. */
@@ -32,6 +35,7 @@ const EXPECTED_PARTIAL_INDEXES = [
   'capacity_adjustments_participation_pending_unique',
   'qr_codes_active_per_registration_unique',
   'registration_companions_document_unique',
+  'registration_documents_event_document_unique',
   'registrations_participation_document_unique',
   'shift_assignments_registration_active_unique',
 ] as const;
@@ -123,10 +127,14 @@ describe('esquema en D1', () => {
     const document = indexes.find(
       (row) => row.name === 'registrations_participation_document_unique',
     );
+    const eventDocument = indexes.find(
+      (row) => row.name === 'registration_documents_event_document_unique',
+    );
     const qr = indexes.find((row) => row.name === 'qr_codes_active_per_registration_unique');
 
-    // Cancelar libera el documento: el indice debe ignorar los cancelados.
+    // Cancelar libera el documento: los dos indices deben ignorar lo liberado.
     expect(document?.sql ?? '').toContain('cancelled');
+    expect(eventDocument?.sql ?? '').toContain("active");
     // Una QR revocada no cuenta: el indice solo mira las activas.
     expect(qr?.sql ?? '').toContain('active');
   });
@@ -190,6 +198,53 @@ describe('restricciones activas en la base de datos', () => {
     await env.DB.prepare('DELETE FROM registrations WHERE id = ?').bind('reg-1').run();
 
     expect(await countRows('registration_companions')).toBe(0);
+  });
+
+  it('impide el mismo documento dos veces en el evento, aunque cambie la sede', async () => {
+    const { participationId } = await seedCatalog();
+    const registrationId = await insertRegistration(participationId);
+
+    // Segunda sede del mismo evento, con SQL crudo: aqui se prueba la base de datos,
+    // no el codigo de la aplicacion.
+    await env.DB.batch([
+      env.DB.prepare(
+        'INSERT INTO establishments (id, code, name, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      ).bind('est-2', 'est-2', 'Sede 2', 'active', NOW, NOW),
+      env.DB.prepare(
+        'INSERT INTO event_establishments (id, event_id, establishment_id, status, titular_capacity, companion_capacity, confirmed_titulares, confirmed_companions, created_at, updated_at) VALUES (?, ?, ?, ?, 2, 2, 0, 0, ?, ?)',
+      ).bind('part-2', 'evt-1', 'est-2', 'open', NOW, NOW),
+    ]);
+
+    const insertDocument = (
+      id: string,
+      role: string,
+      documentNumber: string,
+      participation = participationId,
+    ): Promise<unknown> =>
+      env.DB.prepare(
+        'INSERT INTO registration_documents (id, event_id, participation_id, registration_id, role, document_type, document_number, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      )
+        .bind(id, 'evt-1', participation, registrationId, role, 'CC', documentNumber, 'active', NOW, NOW)
+        .run();
+
+    await insertDocument('doc-1', 'holder', '10203040');
+
+    // Mismo documento, otra sede del mismo evento y otro rol: el indice lo rechaza.
+    await expect(insertDocument('doc-2', 'companion', '10203040', 'part-2')).rejects.toThrow(
+      /UNIQUE constraint failed/,
+    );
+
+    expect(await countRows('registration_documents')).toBe(1);
+
+    // Liberarlo (como hace la cancelacion) vuelve a dejarlo disponible.
+    await env.DB.prepare(
+      "UPDATE registration_documents SET status = 'released', released_at = ? WHERE id = 'doc-1'",
+    )
+      .bind(NOW)
+      .run();
+
+    await insertDocument('doc-3', 'companion', '10203040', 'part-2');
+    expect(await countRows('registration_documents')).toBe(2);
   });
 
   it('mantiene una sola QR activa por registro', async () => {

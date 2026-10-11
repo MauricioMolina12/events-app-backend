@@ -3,6 +3,8 @@ import { ErrorCode } from '../../core/errors/error-codes';
 import { clampLimit, clampOffset, type PaginationLimits } from '../../core/http/pagination';
 import type { Database } from '../../db/client';
 import type { EventStatus } from '../../db/schema';
+import { sumAllocatedEventCapacity } from '../participations/participations.repository';
+import { EVENT_CAPACITY_MAX, assertWithinEventCapacity } from './event-capacity';
 import {
   countEvents,
   findEventById,
@@ -58,6 +60,7 @@ export interface CreateEventCommand extends EventWindowInput {
   readonly name: string;
   readonly description?: string | null;
   readonly timezone?: string;
+  readonly capacity: number;
   readonly status?: EventStatus;
   readonly createdBy?: string | null;
 }
@@ -67,12 +70,14 @@ export interface UpdateEventCommand extends EventWindowInput {
   readonly name?: string;
   readonly description?: string | null;
   readonly timezone?: string;
+  readonly capacity?: number;
   readonly status?: EventStatus;
 }
 
 export interface EventListQuery {
   readonly status?: EventStatus;
   readonly search?: string;
+  readonly createdBy?: string;
   readonly limit?: number;
   readonly offset?: number;
 }
@@ -97,7 +102,7 @@ export async function listEventCatalog(
 ): Promise<EventPage> {
   const limit = clampLimit(query.limit, EVENT_PAGE_LIMITS);
   const offset = clampOffset(query.offset);
-  const filters = { status: query.status, search: query.search };
+  const filters = { status: query.status, search: query.search, createdBy: query.createdBy };
 
   const [items, total] = await Promise.all([
     listEvents(db, { ...filters, limit, offset }),
@@ -129,7 +134,7 @@ export async function getEventById(db: Database, id: string): Promise<EventRow> 
   return event;
 }
 
-/** Evento creado por el administrador autenticado. */
+/** Evento creado por la cuenta autenticada (`createdBy`). */
 export async function createEvent(
   db: Database,
   command: CreateEventCommand,
@@ -142,6 +147,7 @@ export async function createEvent(
   assertEventStatusTransition('draft', status);
   assertTimezone(command.timezone);
   assertWindowCoherent(command);
+  assertCapacityBounds(command.capacity);
 
   return insertEvent(
     db,
@@ -154,6 +160,7 @@ export async function createEvent(
       endsAt: command.endsAt ?? null,
       registrationOpensAt: command.registrationOpensAt ?? null,
       registrationClosesAt: command.registrationClosesAt ?? null,
+      capacity: command.capacity,
       status,
       createdBy: command.createdBy ?? null,
     },
@@ -182,6 +189,12 @@ export async function updateEvent(
 
   if (command.status !== undefined) {
     assertEventStatusTransition(current.status, command.status);
+  }
+
+  if (command.capacity !== undefined) {
+    assertCapacityBounds(command.capacity);
+    const allocated = await sumAllocatedEventCapacity(db, id);
+    assertWithinEventCapacity(command.capacity, allocated, 0);
   }
 
   const updated = await updateEventRow(db, id, changesOf(command), now);
@@ -323,8 +336,21 @@ function changesOf(command: UpdateEventCommand): UpdateEventInput {
   if (command.registrationClosesAt !== undefined) {
     changes.registrationClosesAt = command.registrationClosesAt;
   }
+  if (command.capacity !== undefined) {
+    changes.capacity = command.capacity;
+  }
 
   return changes;
+}
+
+function assertCapacityBounds(capacity: number): void {
+  if (!Number.isInteger(capacity) || capacity < 0 || capacity > EVENT_CAPACITY_MAX) {
+    throw AppError.unprocessable(
+      ErrorCode.VALIDATION_ERROR,
+      `El cupo general debe ser un entero entre 0 y ${EVENT_CAPACITY_MAX}.`,
+      { details: { field: 'capacity' } },
+    );
+  }
 }
 
 function eventNotFound(reference: string): AppError {

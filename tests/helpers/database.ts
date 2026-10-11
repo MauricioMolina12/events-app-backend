@@ -7,6 +7,11 @@ import { env } from 'cloudflare:test';
  * este roto, y no debe disparar traducciones de restricciones.
  */
 const TABLES_IN_DELETE_ORDER = [
+  'user_preferences',
+  'workspace_settings',
+  'turns',
+  'turn_counters',
+  'registration_documents',
   'qr_deliveries',
   'qr_codes',
   'shift_assignments',

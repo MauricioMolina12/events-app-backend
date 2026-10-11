@@ -22,6 +22,7 @@ export interface CreateEventInput {
   endsAt?: Date | null;
   registrationOpensAt?: Date | null;
   registrationClosesAt?: Date | null;
+  capacity?: number;
   status?: EventStatus;
   createdBy?: string | null;
 }
@@ -33,6 +34,8 @@ export interface EventFilters {
   readonly status?: EventStatus;
   /** Texto libre buscado en el slug y el nombre, sin distinguir mayusculas. */
   readonly search?: string;
+  /** Dueño del evento. El panel del operador solo ve los que le asignaron. */
+  readonly createdBy?: string;
 }
 
 export interface ListEventsOptions extends EventFilters {
@@ -55,6 +58,10 @@ function filterConditions(filters: EventFilters): SQL[] {
 
   if (filters.status !== undefined) {
     conditions.push(eq(events.status, filters.status));
+  }
+
+  if (filters.createdBy !== undefined) {
+    conditions.push(eq(events.createdBy, filters.createdBy));
   }
 
   const search = filters.search?.trim().toLowerCase();
@@ -135,6 +142,7 @@ export async function insertEvent(
         endsAt: input.endsAt ?? null,
         registrationOpensAt: input.registrationOpensAt ?? null,
         registrationClosesAt: input.registrationClosesAt ?? null,
+        capacity: input.capacity ?? 0,
         status: input.status ?? 'draft',
         createdBy: input.createdBy ?? null,
         createdAt: now,

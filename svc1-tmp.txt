@@ -1,0 +1,147 @@
+﻿export interface CreateRegistrationCommand {
+  readonly participationId: string;
+  readonly documentType: DocumentType;
+  readonly documentNumber: string;
+  readonly fullName: string;
+  readonly email?: string | null;
+  readonly phone?: string | null;
+  readonly companions?: readonly RegistrationCompanionCommand[];
+  /** Origen del alta: `public` (formulario abierto) o `admin` (panel). */
+  readonly source?: RegistrationSource;
+}
+
+export interface CancelRegistrationCommand {
+  /** Motivo que queda registrado junto a la cancelacion. */
+  readonly reason: string;
+}
+
+export interface RegistrationListQuery {
+  readonly participationId?: string;
+  readonly status?: RegistrationStatus;
+  readonly search?: string;
+  readonly limit?: number;
+  readonly offset?: number;
+}
+
+export interface RegistrationPage {
+  readonly items: readonly RegistrationRow[];
+  readonly total: number;
+  /** Tamano de pagina realmente aplicado, tras acotar el solicitado. */
+  readonly limit: number;
+  readonly offset: number;
+}
+
+/** Registro con sus acompanantes; es lo que devuelven el alta y la consulta. */
+export interface RegistrationDetail {
+  readonly registration: RegistrationRow;
+  readonly companions: readonly RegistrationCompanionRow[];
+}
+
+/**
+ * Normaliza el documento: mayusculas y sin separadores de lectura.
+ *
+ * El indice unico compara texto literal, asi que sin normalizar `1.020.304.000` y
+ * `1020304000` serian dos personas distintas para la base de datos.
+ */
+export function normalizeDocumentNumber(value: string): string {
+  return value.trim().toUpperCase().replace(/[\s.-]/g, '');
+}
+
+/** Valida el documento ya normalizado. */
+export function assertDocumentNumber(documentNumber: string): void {
+  if (!DOCUMENT_NUMBER_PATTERN.test(documentNumber)) {
+    throw AppError.unprocessable(
+      ErrorCode.VALIDATION_ERROR,
+      'El numero de documento no tiene un formato valido (letras y digitos).',
+      { details: { field: 'documentNumber' } },
+    );
+  }
+}
+
+/**
+ * Normaliza y valida los acompanantes.
+ *
+ * Un documento solo es comparable si existe el par tipo + numero, de modo que
+ * declarar la mitad es un error del cliente y no una persona sin documento.
+ */
+export function normalizeCompanions(
+  companions: readonly RegistrationCompanionCommand[] = [],
+  titular?: { readonly documentType: DocumentType; readonly documentNumber: string },
+): readonly NormalizedCompanion[] {
+  if (companions.length > MAX_COMPANIONS_PER_REGISTRATION) {
+    throw AppError.unprocessable(
+      ErrorCode.VALIDATION_ERROR,
+      `Un registro admite como maximo ${MAX_COMPANIONS_PER_REGISTRATION} acompanantes.`,
+      { details: { field: 'companions' } },
+    );
+  }
+
+  const normalized = companions.map((companion, index) => ({
+    fullName: companion.fullName.trim(),
+    ...companionDocument(index, companion),
+  }));
+
+  assertDistinctCompanionDocuments(normalized, titular);
+
+  return normalized;
+}
+
+/** Par tipo/numero del acompanante: completo o ausente, nunca a medias. */
+function companionDocument(
+  index: number,
+  companion: RegistrationCompanionCommand,
+): { readonly documentType: DocumentType | null; readonly documentNumber: string | null } {
+  const documentType = companion.documentType ?? null;
+  const raw = companion.documentNumber ?? null;
+  const field = `companions[${index}].documentNumber`;
+
+  if ((documentType === null) !== (raw === null)) {
+    throw AppError.unprocessable(
+      ErrorCode.VALIDATION_ERROR,
+      'El documento del acompanante necesita tipo y numero, o ninguno de los dos.',
+      { details: { field } },
+    );
+  }
+
+  if (raw === null) {
+    return { documentType: null, documentNumber: null };
+  }
+
+  const documentNumber = normalizeDocumentNumber(raw);
+
+  if (!DOCUMENT_NUMBER_PATTERN.test(documentNumber)) {
+    throw AppError.unprocessable(
+      ErrorCode.VALIDATION_ERROR,
+      'El documento del acompanante no tiene un formato valido (letras y digitos).',
+      { details: { field } },
+    );
+  }
+
+  return { documentType, documentNumber };
+}
+
+/**
+ * Un documento no puede repetirse dentro del registro.
+ *
+ * El indice unico de acompanantes tambien lo impide, pero detectarlo aqui responde
+ * 422 con el campo implicado en lugar de un conflicto de restriccion.
+ */
+function assertDistinctCompanionDocuments(
+  companions: readonly NormalizedCompanion[],
+  titular?: { readonly documentType: DocumentType; readonly documentNumber: string },
+): void {
+  const seen = new Set<string>();
+
+  companions.forEach((companion, index) => {
+    if (companion.documentType === null || companion.documentNumber === null) {
+      return;
+    }
+
+    const key = `${companion.documentType}:${companion.documentNumber}`;
+
+    if (titular !== undefined && key === `${titular.documentType}:${titular.documentNumber}`) {
+      throw AppError.unprocessable(
+        ErrorCode.VALIDATION_ERROR,
+        'El titular no puede figurar tambien como acompanante.',
+        { details: { field: `companions[${index}].documentNumber` } },
+      );

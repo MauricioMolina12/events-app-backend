@@ -1,0 +1,189 @@
+﻿  cancelledAt: null,
+  cancelledReason: null,
+  createdAt: new Date('2026-01-03T10:00:00.000Z'),
+  updatedAt: new Date('2026-01-03T10:00:00.000Z'),
+};
+
+/** Ventana vigente de la ficha publica y el instante en el que se consulta. */
+const EVENT_WINDOW = {
+  registrationOpensAt: new Date('2026-04-01T00:00:00.000Z'),
+  registrationClosesAt: new Date('2026-04-10T00:00:00.000Z'),
+};
+const INSIDE_WINDOW = new Date('2026-04-02T00:00:00.000Z');
+
+describe('normalizacion del documento', () => {
+  it('quita los separadores de lectura y pasa a mayusculas', () => {
+    expect(normalizeDocumentNumber(' 1.020-304 000 ')).toBe('1020304000');
+    expect(normalizeDocumentNumber('cc 12.34-5')).toBe('CC12345');
+  });
+
+  it('acepta el documento ya normalizado y rechaza lo que no puede serlo', () => {
+    expect(capturedError(() => assertDocumentNumber('1020304000'))).toBeNull();
+    expect(capturedError(() => assertDocumentNumber('AB1234'))).toBeNull();
+
+    const tooShort = capturedError(() => assertDocumentNumber('123'));
+    expect(tooShort).toBeInstanceOf(AppError);
+    expect((tooShort as AppError).code).toBe(ErrorCode.VALIDATION_ERROR);
+    expect((tooShort as AppError).status).toBe(422);
+
+    // El formato se comprueba despues de normalizar: los puntos ya no existen.
+    expect(capturedError(() => assertDocumentNumber('1.020.304.000'))).toBeInstanceOf(AppError);
+  });
+});
+
+describe('normalizacion de acompanantes', () => {
+  it('normaliza el documento y admite acompanantes sin documento', () => {
+    const companions = normalizeCompanions([
+      { fullName: ' Luis Perez ', documentType: 'TI', documentNumber: '99.001' },
+      { fullName: 'Sofia Perez' },
+    ]);
+
+    expect(companions).toEqual([
+      { fullName: 'Luis Perez', documentType: 'TI', documentNumber: '99001' },
+      { fullName: 'Sofia Perez', documentType: null, documentNumber: null },
+    ]);
+  });
+
+  it('rechaza un documento a medias', () => {
+    const withoutNumber = capturedError(() =>
+      normalizeCompanions([{ fullName: 'Luis Perez', documentType: 'TI' }]),
+    );
+
+    expect(withoutNumber).toBeInstanceOf(AppError);
+    expect((withoutNumber as AppError).code).toBe(ErrorCode.VALIDATION_ERROR);
+    expect((withoutNumber as AppError).status).toBe(422);
+
+    expect(
+      capturedError(() =>
+        normalizeCompanions([{ fullName: 'Luis Perez', documentNumber: '99001' }]),
+      ),
+    ).toBeInstanceOf(AppError);
+  });
+
+  it('rechaza que el titular figure tambien como acompanante', () => {
+    const error = capturedError(() =>
+      normalizeCompanions(
+        [{ fullName: 'Ana Perez', documentType: 'CC', documentNumber: '10203040' }],
+        { documentType: 'CC', documentNumber: '10203040' },
+      ),
+    );
+
+    expect((error as AppError).code).toBe(ErrorCode.VALIDATION_ERROR);
+    expect((error as AppError).details).toMatchObject({
+      field: 'companions[0].documentNumber',
+    });
+  });
+
+  it('rechaza documentos repetidos entre acompanantes', () => {
+    const error = capturedError(() =>
+      normalizeCompanions([
+        { fullName: 'Luis Perez', documentType: 'TI', documentNumber: '5555' },
+        { fullName: 'Otro Luis', documentType: 'TI', documentNumber: '5.555' },
+      ]),
+    );
+
+    expect((error as AppError).code).toBe(ErrorCode.VALIDATION_ERROR);
+  });
+
+  it('acota el numero de acompanantes por registro', () => {
+    const companions = Array.from(
+      { length: MAX_COMPANIONS_PER_REGISTRATION + 1 },
+      (_, index) => ({ fullName: `Acompanante ${index}` }),
+    );
+
+    const error = capturedError(() => normalizeCompanions(companions));
+
+    expect((error as AppError).code).toBe(ErrorCode.VALIDATION_ERROR);
+    expect((error as AppError).status).toBe(422);
+  });
+});
+
+describe('ventana efectiva de registro', () => {
+  const eventWindow = {
+    registrationOpensAt: new Date('2026-04-01T00:00:00.000Z'),
+    registrationClosesAt: new Date('2026-04-10T00:00:00.000Z'),
+  };
+  const participationWindow = {
+    registrationOpensAt: new Date('2026-04-05T00:00:00.000Z'),
+    registrationClosesAt: null,
+  };
+
+  it('la sede sobrescribe la ventana del evento y hereda los extremos que no define', () => {
+    expect(effectiveRegistrationWindow(eventWindow, participationWindow)).toEqual({
+      opensAt: participationWindow.registrationOpensAt,
+      closesAt: eventWindow.registrationClosesAt,
+    });
+
+    expect(
+      effectiveRegistrationWindow(eventWindow, {
+        registrationOpensAt: null,
+        registrationClosesAt: participationWindow.registrationOpensAt,
+      }),
+    ).toEqual({
+      opensAt: eventWindow.registrationOpensAt,
+      closesAt: participationWindow.registrationOpensAt,
+    });
+  });
+
+  it('sin ventana en ninguno de los dos el registro solo depende del estado', () => {
+    expect(
+      effectiveRegistrationWindow(
+        { registrationOpensAt: null, registrationClosesAt: null },
+        { registrationOpensAt: null, registrationClosesAt: null },
+      ),
+    ).toEqual({ opensAt: null, closesAt: null });
+  });
+
+  it('solo acepta un instante dentro de la ventana', () => {
+    const window = {
+      opensAt: eventWindow.registrationOpensAt,
+      closesAt: eventWindow.registrationClosesAt,
+    };
+
+    expect(isWithinRegistrationWindow(window, INSIDE_WINDOW)).toBe(true);
+    expect(isWithinRegistrationWindow(window, new Date('2026-03-31T23:59:59.000Z'))).toBe(false);
+    expect(isWithinRegistrationWindow(window, new Date('2026-04-10T00:00:01.000Z'))).toBe(false);
+
+    // Un extremo ausente no filtra.
+    expect(isWithinRegistrationWindow({ opensAt: null, closesAt: null }, INSIDE_WINDOW)).toBe(true);
+  });
+
+  it('fuera de la ventana el alta se rechaza con 409 y sus extremos', () => {
+    const window = { opensAt: null, closesAt: eventWindow.registrationClosesAt };
+    const outside = new Date('2026-04-11T00:00:00.000Z');
+
+    const error = capturedError(() => assertRegistrationWindow(window, outside));
+
+    expect(error).toBeInstanceOf(AppError);
+    expect((error as AppError).code).toBe(ErrorCode.REGISTRATION_OUTSIDE_WINDOW);
+    expect((error as AppError).status).toBe(409);
+    expect((error as AppError).details).toEqual({
+      opensAt: null,
+      closesAt: '2026-04-10T00:00:00.000Z',
+      now: '2026-04-11T00:00:00.000Z',
+    });
+
+    expect(capturedError(() => assertRegistrationWindow(window, INSIDE_WINDOW))).toBeNull();
+  });
+});
+
+describe('precondiciones de estado del alta', () => {
+  it('solo los eventos publicados admiten registros', () => {
+    expect(capturedError(() => assertEventPublished('published'))).toBeNull();
+
+    for (const status of ['draft', 'closed', 'archived'] as const) {
+      const error = capturedError(() => assertEventPublished(status));
+
+      expect(error).toBeInstanceOf(AppError);
+      expect((error as AppError).code).toBe(ErrorCode.EVENT_NOT_REGISTRABLE);
+      expect((error as AppError).status).toBe(409);
+      expect((error as AppError).details).toEqual({ status });
+    }
+  });
+
+  it('la sede debe estar abierta y su establecimiento activo', () => {
+    expect(capturedError(() => assertParticipationAcceptsRegistrations('open', 'active'))).toBeNull();
+
+    for (const [status, establishmentStatus] of [
+      ['closed', 'active'],
+      ['cancelled', 'active'],

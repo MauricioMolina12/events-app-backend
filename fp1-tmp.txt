@@ -1,0 +1,83 @@
+﻿  redirige a `/panel/login` con un aviso.
+- El administrador inicial se crea con un comando de bootstrap del backend (Fase 4.5,
+  pendiente): la UI no ofrece "registro" publico de administradores.
+
+---
+
+## 8. Reglas de negocio que la interfaz debe respetar
+
+1. **`registrationOpen` es la unica fuente de verdad para habilitar el boton de
+   inscripcion.** El backend lo calcula exigiendo tres condiciones a la vez: la sede en
+   `open`, su establecimiento en `active` y la fecha dentro de la **ventana efectiva**.
+   El catalogo usa la misma evaluacion que el alta, asi que si `registrationOpen` es
+   `false` no puede existir un alta exitosa: **no recalcules la ventana en el cliente**
+   ni la compares con el reloj local para decidir si se puede inscribir.
+2. **Ventana efectiva = ventana de la sede, o la del evento cuando la sede no define la
+   suya.** En la UI muestra la fecha **efectiva** (los campos que el backend devuelve en
+   la participacion publica ya vienen resueltos), no la del evento.
+3. **El cupo se reserva de forma condicional en el servidor.** Ante dos altas por el
+   ultimo lugar, una prospera y la otra recibe `409` `TITULAR_CAPACITY_EXCEEDED` (o
+   `COMPANION_CAPACITY_EXCEEDED`). La UI **nunca** promete "hay cupo": refresca la
+   disponibilidad y maneja el 409 con un mensaje claro y accion de elegir otra sede.
+4. **Documento unico por sede, no por evento.** La misma persona puede inscribirse en
+   varias sedes del mismo evento, pero solo una vez por sede. El documento se
+   **normaliza** (mayusculas, solo letras y digitos) antes de comparar: `1.020.304.000`
+   y `1020304000` son el mismo. Normaliza tambien en el cliente para la busqueda y para
+   el mensaje de duplicado, pero deja la verdad al servidor.
+5. **Cancelar libera el documento y devuelve el cupo** (titular + acompanantes) en la
+   misma operacion. Si el usuario vuelve a inscribirse, es un alta nueva.
+6. **El listado de registros incluye los cancelados** y es cronologico inverso. Filtra
+   por `status` cuando la vista necesite "solo vigentes"; muestra los cancelados con
+   estilo atenuado y el motivo.
+7. **Los estados internos no se filtran al publico**: un evento en `draft`, `closed` o
+   `archived` responde `404 EVENT_NOT_FOUND` igual que uno inexistente. En el sitio
+   publico, "no encontrado" y "no disponible" se ven igual.
+8. **Los identificadores estables no se editan**: `slug` del evento y `code` de la sede
+   son inmutables; en edicion, inputs deshabilitados con tooltip explicativo.
+9. **Sin borrado fisico**: evento â†’ `archived`; sede â†’ `inactive`; cuenta â†’ `disabled`;
+   participacion â†’ `cancelled` (solo sin registros confirmados). Las acciones de
+   "eliminar" de la UI son transiciones de estado con confirmacion explicita.
+10. **El cupo no se edita en caliente**: con registros confirmados, `PATCH
+    /participations/{id}` con nuevos cupos responde `409 CAPACITY_ADJUSTMENT_REQUIRED`.
+    La UI muestra el cupo en solo lectura y explica que requiere el flujo de aprobacion
+    (Fase 5); deja el punto de extension preparado, sin endpoint inventado.
+11. **Las fechas se envian siempre en ISO-8601 UTC** (`new Date(...).toISOString()`);
+    la conversion a `America/Bogota` es solo de presentacion. Cuidado con los
+    `<input type="datetime-local">`: convierte explicitamente usando el `timezone` del
+    recurso antes de enviar.
+12. **`status: 'waitlisted'` existe** en los tipos de registro aunque hoy no lo produzca
+    ningun flujo: disena los chips/estados para soportarlo sin romper la UI.
+
+---
+
+## 9. Modelos y capa de datos
+
+### 9.1 Tipos (espejo del contrato; sin `any`)
+
+```ts
+// core/api/envelope.ts
+export type ApiEnvelope<T> = { success: true; data: T; meta?: PageMeta };
+export interface PageMeta { total: number; limit: number; offset: number }
+export interface ApiErrorBody {
+  success: false;
+  error: { code: ErrorCode; message: string; details?: ValidationDetails };
+  requestId?: string;
+}
+export type ErrorCode = 'VALIDATION_ERROR' | 'EVENT_NOT_FOUND' | 'DUPLICATE_REGISTRATION' | /* ... */ string;
+
+// features/*/models
+export type EventStatus = 'draft' | 'published' | 'closed' | 'archived';
+export type EstablishmentStatus = 'active' | 'inactive';
+export type ParticipationStatus = 'open' | 'closed' | 'cancelled';
+export type RegistrationStatus = 'confirmed' | 'waitlisted' | 'cancelled';
+export type RegistrationSource = 'public' | 'admin';
+export type DocumentType = 'CC' | 'TI' | 'CE' | 'PA' | 'RC' | 'NIT';
+export type UserRole = 'admin' | 'operator';
+export type UserStatus = 'active' | 'disabled';
+
+/** Todos los campos de fecha: string ISO-8601 UTC, jamas Date en los modelos de API. */
+export type IsoDate = string;
+```
+
+`ApiError` (clase propia, en `core/api/`): `status`, `code`, `message`, `details?`,
+`requestId?`. Se construye **una sola vez** en el interceptor de errores y es lo que

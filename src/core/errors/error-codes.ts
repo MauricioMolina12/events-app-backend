@@ -36,6 +36,11 @@ export const ErrorCode = {
   EVENT_NOT_REGISTRABLE: 'EVENT_NOT_REGISTRABLE',
   ESTABLISHMENT_NOT_FOUND: 'ESTABLISHMENT_NOT_FOUND',
   EVENT_SLUG_ALREADY_USED: 'EVENT_SLUG_ALREADY_USED',
+  /**
+   * La suma de cupos de las sedes (titulares + acompanantes, sin canceladas)
+   * superaria el cupo general del evento.
+   */
+  EVENT_CAPACITY_EXCEEDED: 'EVENT_CAPACITY_EXCEEDED',
   ESTABLISHMENT_CODE_ALREADY_USED: 'ESTABLISHMENT_CODE_ALREADY_USED',
   /** El estado no admite la transicion pedida (por ejemplo, reabrir un archivado). */
   STATUS_TRANSITION_INVALID: 'STATUS_TRANSITION_INVALID',
@@ -47,9 +52,27 @@ export const ErrorCode = {
 
   /* --- Registros de participacion --- */
   REGISTRATION_NOT_FOUND: 'REGISTRATION_NOT_FOUND',
+  /**
+   * El documento ingresado ya ocupa un lugar en el evento, como titular o como
+   * acompanante. `details` trae `document`, `role` (rol con el que se intentaba
+   * registrar), `registeredAs` (rol con el que ya existe y `field` (campo del
+   * cuerpo que el frontend debe senalar).
+   */
+  DUPLICATE_DOCUMENT: 'DUPLICATE_DOCUMENT',
+  /**
+   * Codigo reservado: lo producia el indice unico por sede de `registrations`.
+   * La regla vigente es **un documento por evento**, completa y con `details`, y
+   * se responde con `DUPLICATE_DOCUMENT`; este valor se conserva porque el
+   * catalogo es contrato publico y no se renombran ni se eliminan codigos.
+   */
   DUPLICATE_REGISTRATION: 'DUPLICATE_REGISTRATION',
   TITULAR_CAPACITY_EXCEEDED: 'TITULAR_CAPACITY_EXCEEDED',
   COMPANION_CAPACITY_EXCEEDED: 'COMPANION_CAPACITY_EXCEEDED',
+  /**
+   * El registro ya tiene el maximo de acompanantes permitido por titular.
+   * `details` trae `max`, `current` y `requested`.
+   */
+  COMPANION_LIMIT_REACHED: 'COMPANION_LIMIT_REACHED',
   REGISTRATION_ALREADY_CANCELLED: 'REGISTRATION_ALREADY_CANCELLED',
   REGISTRATION_OUTSIDE_WINDOW: 'REGISTRATION_OUTSIDE_WINDOW',
 
@@ -76,6 +99,10 @@ export const ErrorCode = {
    * entrar por el flujo de aprobacion (`capacity_adjustments`).
    */
   CAPACITY_ADJUSTMENT_REQUIRED: 'CAPACITY_ADJUSTMENT_REQUIRED',
+
+  /* --- Identidad del espacio --- */
+  /** El archivo no es PNG, JPEG o WebP, o sus dimensiones quedan fuera de rango. */
+  LOGO_INVALID: 'LOGO_INVALID',
 } as const;
 
 export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];

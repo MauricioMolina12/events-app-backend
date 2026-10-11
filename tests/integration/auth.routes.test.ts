@@ -9,6 +9,7 @@ import {
   loginAs,
   loginRequest,
   sessionTokenOf,
+  signupRequest,
 } from '../helpers/auth';
 import { countRows, truncateAll } from '../helpers/database';
 
@@ -55,6 +56,43 @@ async function countAttempts(succeeded: boolean): Promise<number> {
 
   return row?.total ?? 0;
 }
+
+describe('POST /auth/signup', () => {
+  it('crea la cuenta, emite cookie y devuelve una sesion activa', async () => {
+    const response = await signupRequest('nuevo@example.com', 'Nuevo Usuario', PASSWORD);
+
+    expect(response.status).toBe(201);
+
+    const body = await response.json<SessionBody>();
+    expect(body.data.user).toEqual({
+      id: expect.any(String),
+      email: 'nuevo@example.com',
+      fullName: 'Nuevo Usuario',
+      role: 'operator',
+      status: 'active',
+    });
+    expect(new Date(body.data.session.expiresAt).getTime()).toBeGreaterThan(Date.now());
+    expect(response.headers.get('set-cookie') ?? '').toContain('events_session=');
+    await expect(countRows('users')).resolves.toBe(1);
+  });
+
+  it('rechaza un email duplicado con 409', async () => {
+    await createTestUser({ email: 'duplicado@example.com', password: PASSWORD, fullName: 'Ana' });
+
+    const response = await signupRequest('Duplicado@Example.com', 'Ana', PASSWORD);
+
+    expect(response.status).toBe(409);
+    await expect(errorCodeOf(response)).resolves.toBe('EMAIL_ALREADY_USED');
+  });
+
+  it('valida el cuerpo antes de crear la cuenta', async () => {
+    const response = await signupRequest('usuario@example.com', 'Nombre', 'corta');
+
+    expect(response.status).toBe(422);
+    await expect(errorCodeOf(response)).resolves.toBe('VALIDATION_ERROR');
+    await expect(countRows('users')).resolves.toBe(0);
+  });
+});
 
 describe('POST /auth/login', () => {
   it('emite una cookie HttpOnly y devuelve el usuario sin credenciales', async () => {

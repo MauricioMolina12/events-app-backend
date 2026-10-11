@@ -1,0 +1,201 @@
+﻿}> {
+  const event = await events.insertEvent(
+    db,
+    { slug: 'evento-1', name: 'Evento 1', status: 'published', ...options.event },
+    NOW,
+  );
+  const establishment = await establishments.insertEstablishment(
+    db,
+    { code: 'norte', name: 'Sede Norte', city: 'Bogota', ...options.establishment },
+    NOW,
+  );
+  const participation = await participations.insertParticipation(
+    db,
+    {
+      eventId: event.id,
+      establishmentId: establishment.id,
+      titularCapacity: 5,
+      companionCapacity: 5,
+      ...options.participation,
+    },
+    NOW,
+  );
+
+  return { event, establishment, participation };
+}
+
+/** Cuerpo del alta con los datos minimos y lo que el caso quiera cambiar. */
+function registrationBody(
+  participationId: string,
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    participationId,
+    documentType: 'CC',
+    documentNumber: '10203040',
+    fullName: 'Ana Perez',
+    ...overrides,
+  };
+}
+
+function postRegistration(
+  cookie: string,
+  body: Record<string, unknown>,
+): Promise<Response> {
+  return api('/registrations', cookie, { method: 'POST', body: JSON.stringify(body) });
+}
+
+/** Alta que se espera exitosa: devuelve la ficha creada. */
+async function readRegistration(
+  cookie: string,
+  body: Record<string, unknown>,
+): Promise<RegistrationBody> {
+  const response = await postRegistration(cookie, body);
+  expect(response.status).toBe(201);
+  return (await response.json<RegistrationResponse>()).data;
+}
+
+/** Cupo consumido en la sede, tal como lo expone el catalogo del panel. */
+async function capacityOf(cookie: string, participationId: string): Promise<ParticipationBody> {
+  const response = await api(`/participations/${participationId}`, cookie);
+  expect(response.status).toBe(200);
+  return (await response.json<ParticipationResponse>()).data;
+}
+
+describe('autorizacion de los registros', () => {
+  it('exige una sesion activa para la mesa de registro', async () => {
+    const list = await api('/registrations', '');
+    expect(list.status).toBe(401);
+    await expect(errorCodeOf(list)).resolves.toBe('UNAUTHENTICATED');
+
+    const create = await postRegistration('', registrationBody(UNKNOWN_ID));
+    expect(create.status).toBe(401);
+    await expect(errorCodeOf(create)).resolves.toBe('UNAUTHENTICATED');
+  });
+
+  it('deja al operador atender y buscar dentro de la jornada', async () => {
+    const operator = await seedOperator();
+    const { participation } = await seedCatalog();
+
+    const created = await postRegistration(operator.cookie, registrationBody(participation.id));
+    expect(created.status).toBe(201);
+    expect((await created.json<RegistrationResponse>()).data.source).toBe('admin');
+
+    const list = await api('/registrations', operator.cookie);
+    expect(list.status).toBe(200);
+    expect((await list.json<RegistrationListResponse>()).meta.total).toBe(1);
+  });
+});
+
+describe('alta manual desde el panel', () => {
+  it('crea el registro con sus acompanantes y normaliza el documento', async () => {
+    const admin = await seedAdmin();
+    const { participation } = await seedCatalog();
+
+    const response = await postRegistration(
+      admin.cookie,
+      registrationBody(participation.id, {
+        documentNumber: '1.020.304.000',
+        email: 'ana@example.com',
+        phone: '+57 300 123 4567',
+        companions: [
+          { fullName: 'Luis Perez', documentType: 'TI', documentNumber: '99.001' },
+          { fullName: 'Sofia Perez' },
+        ],
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    const created = (await response.json<RegistrationResponse>()).data;
+
+    expect(created).toMatchObject({
+      participationId: participation.id,
+      documentType: 'CC',
+      documentNumber: '1020304000',
+      fullName: 'Ana Perez',
+      phone: '+57 300 123 4567',
+      companionsCount: 2,
+      status: 'confirmed',
+      source: 'admin',
+      cancelledAt: null,
+      cancelledReason: null,
+    });
+    expect(created.registeredAt).toBe(new Date(created.registeredAt).toISOString());
+
+    const detail = await api(`/registrations/${created.id}`, admin.cookie);
+    expect(detail.status).toBe(200);
+    const companions = (await detail.json<RegistrationDetailResponse>()).data.companions;
+
+    expect(companions.map((companion) => companion.fullName)).toEqual(['Luis Perez', 'Sofia Perez']);
+    expect(companions.map((companion) => companion.documentNumber)).toEqual(['99001', null]);
+  });
+
+  it('reserva el cupo antes de escribir: el ultimo lugar es de uno solo', async () => {
+    const admin = await seedAdmin();
+    const { participation } = await seedCatalog({ participation: { titularCapacity: 1 } });
+
+    const first = await postRegistration(admin.cookie, registrationBody(participation.id));
+    expect(first.status).toBe(201);
+
+    const second = await postRegistration(
+      admin.cookie,
+      registrationBody(participation.id, { documentNumber: '99887766', fullName: 'Luis Gomez' }),
+    );
+
+    expect(second.status).toBe(409);
+    await expect(errorCodeOf(second)).resolves.toBe('TITULAR_CAPACITY_EXCEEDED');
+
+    const capacity = await capacityOf(admin.cookie, participation.id);
+    expect(capacity.confirmedTitulares).toBe(1);
+    expect(capacity.availableTitulares).toBe(0);
+  });
+
+  it('devuelve el cupo del titular cuando falta el de acompanantes', async () => {
+    const admin = await seedAdmin();
+    const { participation } = await seedCatalog({ participation: { companionCapacity: 1 } });
+
+    const failed = await postRegistration(
+      admin.cookie,
+      registrationBody(participation.id, {
+        companions: [
+          { fullName: 'Luis Perez', documentType: 'TI', documentNumber: '99001' },
+          { fullName: 'Sofia Perez' },
+        ],
+      }),
+    );
+
+    expect(failed.status).toBe(409);
+    await expect(errorCodeOf(failed)).resolves.toBe('COMPANION_CAPACITY_EXCEEDED');
+
+    // La reserva del titular se libera: un alta fallida no deja cupo vendido.
+    const capacity = await capacityOf(admin.cookie, participation.id);
+    expect(capacity.confirmedTitulares).toBe(0);
+    expect(capacity.confirmedCompanions).toBe(0);
+
+    const retry = await postRegistration(
+      admin.cookie,
+      registrationBody(participation.id, {
+        companions: [{ fullName: 'Luis Perez', documentType: 'TI', documentNumber: '99001' }],
+      }),
+    );
+    expect(retry.status).toBe(201);
+  });
+
+  it('rechaza el documento duplicado en la misma sede sin gastar cupo', async () => {
+    const admin = await seedAdmin();
+    const { participation } = await seedCatalog();
+
+    await readRegistration(
+      admin.cookie,
+      registrationBody(participation.id, { documentNumber: '1.020.304.000' }),
+    );
+
+    const duplicate = await postRegistration(
+      admin.cookie,
+      registrationBody(participation.id, { documentNumber: '1020304000', fullName: 'Otra persona' }),
+    );
+
+    expect(duplicate.status).toBe(409);
+    await expect(errorCodeOf(duplicate)).resolves.toBe('DUPLICATE_REGISTRATION');
+    expect((await capacityOf(admin.cookie, participation.id)).confirmedTitulares).toBe(1);
+  });

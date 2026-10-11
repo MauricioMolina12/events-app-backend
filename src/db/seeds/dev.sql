@@ -13,7 +13,7 @@ VALUES
   ('22222222-2222-4222-8222-222222222222', 'sur', 'Colegio Sur', 'Bogota', 'Carrera 50 # 22-10', 'active', CAST(strftime('%s', 'now') AS INTEGER) * 1000, CAST(strftime('%s', 'now') AS INTEGER) * 1000)
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO events (id, slug, name, description, timezone, starts_at, ends_at, registration_opens_at, registration_closes_at, status, created_by, created_at, updated_at)
+INSERT INTO events (id, slug, name, description, timezone, starts_at, ends_at, registration_opens_at, registration_closes_at, capacity, status, created_by, created_at, updated_at)
 VALUES (
   '33333333-3333-4333-8333-333333333333',
   'dia-del-nino-2026',
@@ -24,6 +24,7 @@ VALUES (
   (CAST(strftime('%s', 'now') AS INTEGER) + 612000) * 1000,
   CAST(strftime('%s', 'now') AS INTEGER) * 1000,
   (CAST(strftime('%s', 'now') AS INTEGER) + 604800) * 1000,
+  500,
   'published',
   NULL,
   CAST(strftime('%s', 'now') AS INTEGER) * 1000,

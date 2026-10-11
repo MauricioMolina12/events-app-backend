@@ -54,18 +54,24 @@ describe('autorizacion del catalogo de sedes', () => {
     await expect(errorCodeOf(response)).resolves.toBe('UNAUTHENTICATED');
   });
 
-  it('deja leer al operador pero no escribir', async () => {
+  it('deja leer y crear al operador, pero no editar sedes existentes', async () => {
     const operator = await seedOperator();
 
     const list = await api('/establishments', operator.cookie);
     expect(list.status).toBe(200);
 
-    const create = await api('/establishments', operator.cookie, {
-      method: 'POST',
-      body: JSON.stringify({ code: 'sede-prohibida', name: 'No permitida' }),
+    const created = await createEstablishment(operator.cookie, {
+      code: 'sede-operador',
+      name: 'Sede del operador',
     });
-    expect(create.status).toBe(403);
-    await expect(errorCodeOf(create)).resolves.toBe('FORBIDDEN');
+    expect(created.code).toBe('sede-operador');
+
+    const patch = await api(`/establishments/${created.id}`, operator.cookie, {
+      method: 'PATCH',
+      body: JSON.stringify({ name: 'Intento' }),
+    });
+    expect(patch.status).toBe(403);
+    await expect(errorCodeOf(patch)).resolves.toBe('FORBIDDEN');
   });
 });
 

@@ -12,11 +12,18 @@ import {
   listEstablishmentSummaries,
 } from '../establishments/establishments.service';
 import { getEventById } from '../events/events.service';
+import { assertWithinEventCapacity } from '../events/event-capacity';
 import {
   countParticipations,
   findParticipationById,
   insertParticipation,
   listParticipations,
+  listParticipationsByEventIds,
+  releaseCompanionCapacity,
+  releaseTitularCapacity,
+  reserveCompanionCapacity,
+  reserveTitularCapacity,
+  sumAllocatedEventCapacity,
   updateParticipation as updateParticipationRow,
   type ParticipationRow,
   type UpdateParticipationInput,
@@ -28,6 +35,10 @@ import {
  * El servicio compone dos modulos: pide al catalogo de eventos y al de sedes lo
  * que necesita (nunca consulta sus tablas) y decide las reglas que protegen los
  * cupos ya comprometidos.
+ *
+ * Tambien publica la API de cupo (`reserve*Slot` / `release*Slot`): el cupo
+ * consumido vive en `event_establishments`, que es esta tabla, asi que los
+ * registros lo mueven por aqui en lugar de escribirla por su cuenta.
  */
 
 export const PARTICIPATION_LIST_DEFAULT_LIMIT = 20;
@@ -151,6 +162,64 @@ export async function getParticipationDetail(
 }
 
 /**
+ * Participaciones de varios eventos, en una sola consulta.
+ *
+ * Es el punto de entrada del catalogo publico: resuelve el cupo de toda una pagina
+ * de eventos sin caer en una consulta por fila.
+ */
+export async function listParticipationsByEvents(
+  db: Database,
+  eventIds: readonly string[],
+  filters: { readonly status?: ParticipationStatus } = {},
+): Promise<readonly ParticipationRow[]> {
+  return listParticipationsByEventIds(db, eventIds, filters);
+}
+
+/**
+ * Reserva un cupo de titular.
+ *
+ * `false` significa que la precondicion no se cumplio (sede cerrada o cupo
+ * agotado); el error concreto lo decide quien llama, porque el mismo resultado
+ * tiene causas distintas.
+ */
+export async function reserveTitularSlot(
+  db: Database,
+  participationId: string,
+  now: Date = new Date(),
+): Promise<boolean> {
+  return reserveTitularCapacity(db, participationId, now);
+}
+
+/** Reserva cupos de acompanantes; el grupo entra completo o no entra. */
+export async function reserveCompanionSlots(
+  db: Database,
+  participationId: string,
+  slots: number,
+  now: Date = new Date(),
+): Promise<boolean> {
+  return reserveCompanionCapacity(db, participationId, slots, now);
+}
+
+/** Devuelve un cupo de titular; `false` si no habia nada que liberar. */
+export async function releaseTitularSlot(
+  db: Database,
+  participationId: string,
+  now: Date = new Date(),
+): Promise<boolean> {
+  return releaseTitularCapacity(db, participationId, now);
+}
+
+/** Devuelve cupos de acompanantes; `false` si no habia suficientes consumidos. */
+export async function releaseCompanionSlots(
+  db: Database,
+  participationId: string,
+  slots: number,
+  now: Date = new Date(),
+): Promise<boolean> {
+  return releaseCompanionCapacity(db, participationId, slots, now);
+}
+
+/**
  * Agrega una sede al evento.
  *
  * Exige que el evento siga admitiendo registro y que la sede este activa; la
@@ -169,6 +238,13 @@ export async function createParticipation(
   assertEventAcceptsParticipations(event.status);
   assertEstablishmentActive(establishment.status);
   assertWindowCoherent(command);
+
+  const allocated = await sumAllocatedEventCapacity(db, command.eventId);
+  assertWithinEventCapacity(
+    event.capacity,
+    allocated,
+    command.titularCapacity + command.companionCapacity,
+  );
 
   const participation = await insertParticipation(
     db,
@@ -235,6 +311,17 @@ export async function updateParticipation(
       'Con registros confirmados, el cupo solo cambia mediante una solicitud de ajuste aprobada.',
       { details: registrationsDetails(current) },
     );
+  }
+
+  const nextStatus = command.status ?? current.status;
+  if (nextStatus !== 'cancelled' && changesCapacity(current, command)) {
+    const event = await getEventById(db, current.eventId);
+    const allocated = await sumAllocatedEventCapacity(db, current.eventId, {
+      excludeParticipationId: current.id,
+    });
+    const nextTitular = command.titularCapacity ?? current.titularCapacity;
+    const nextCompanion = command.companionCapacity ?? current.companionCapacity;
+    assertWithinEventCapacity(event.capacity, allocated, nextTitular + nextCompanion);
   }
 
   const updated = await updateParticipationRow(db, id, changesOf(command), now);

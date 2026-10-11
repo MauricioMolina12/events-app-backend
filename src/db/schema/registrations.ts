@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { createdAtColumn, idColumn, requiredTimestampColumn, timestampColumn, updatedAtColumn } from './columns';
-import { eventEstablishments } from './events';
+import { events, eventEstablishments } from './events';
 
 /* ------------------------------------------------------------------ *
  * Registros de participacion y acompanantes.
@@ -20,12 +20,14 @@ export type RegistrationSource = (typeof REGISTRATION_SOURCES)[number];
  * Registro de participacion (siempre es el titular; obtiene un unico QR).
  *
  * Invariantes:
- * - **Un documento, un registro por evento + establecimiento.** La participacion
- *   ya es la pareja (evento, establecimiento), por lo que el indice unico
- *   parcial sobre `(participation_id, document_type, document_number)` expresa
- *   la regla de forma transitiva y sin columnas duplicadas.
- * - El indice es **parcial** (`status <> 'cancelled'`): cancelar libera el
- *   documento, de modo que la persona puede volver a registrarse.
+ * - **Un documento, un registro por evento, sea titular o acompanante.** La regla
+ *   vive en `registration_documents` (ver esa tabla), porque un indice unico no
+ *   puede abarcar dos tablas. El indice parcial sobre
+ *   `(participation_id, document_type, document_number)` queda como red de
+ *   seguridad para quien escriba sin pasar por el servicio: es mas debil (por
+ *   sede) y por eso nunca puede contradecir la regla del evento.
+ * - Ambos indices son **parciales**: cancelar libera el documento, de modo que la
+ *   persona puede volver a registrarse.
  * - `companions_count` es la unica fuente de verdad del cupo consumido; la fila
  *   de acompanantes es informativa.
  */
@@ -42,6 +44,10 @@ export const registrations = sqliteTable(
     fullName: text('full_name').notNull(),
     email: text('email'),
     phone: text('phone'),
+    /** Si el titular pidio factura electronica. Por ahora solo se almacena. */
+    requiresElectronicInvoice: integer('requires_electronic_invoice', { mode: 'boolean' })
+      .notNull()
+      .default(false),
     companionsCount: integer('companions_count').notNull().default(0),
     status: text('status', { enum: REGISTRATION_STATUSES }).notNull().default('confirmed'),
     source: text('source', { enum: REGISTRATION_SOURCES }).notNull().default('public'),
@@ -66,7 +72,9 @@ export const registrations = sqliteTable(
  *
  * Se guardan aparte porque su numero es variable y solo el titular recibe QR.
  * `full_name` es obligatorio; el documento es opcional (menores de edad suelen
- * no tenerlo), y cuando existe no puede repetirse dentro del mismo registro.
+ * no tenerlo), y cuando existe no puede repetirse dentro del mismo registro ni
+ * coincidir con otro documento activo del evento: eso ultimo lo garantiza
+ * `registration_documents`.
  */
 export const registrationCompanions = sqliteTable(
   'registration_companions',
@@ -86,5 +94,74 @@ export const registrationCompanions = sqliteTable(
     uniqueIndex('registration_companions_document_unique')
       .on(table.registrationId, table.documentType, table.documentNumber)
       .where(sql`${table.documentNumber} IS NOT NULL`),
+  ],
+);
+
+/* ------------------------------------------------------------------ *
+ * Registro centralizado de documentos.
+ * ------------------------------------------------------------------ */
+
+/** Rol con el que un documento participa en el evento. */
+export const REGISTRATION_DOCUMENT_ROLES = ['holder', 'companion'] as const;
+export type RegistrationDocumentRole = (typeof REGISTRATION_DOCUMENT_ROLES)[number];
+
+/**
+ * `active`: el documento ocupa su lugar en el evento.
+ * `released`: el registro se cancelo y el documento queda libre otra vez.
+ */
+export const REGISTRATION_DOCUMENT_STATUSES = ['active', 'released'] as const;
+export type RegistrationDocumentStatus = (typeof REGISTRATION_DOCUMENT_STATUSES)[number];
+
+/**
+ * Documentos de un evento, sin importar quien los uso.
+ *
+ * Existe porque la regla de negocio es **un documento por evento**, y un indice
+ * unico no puede cubrir `registrations` y `registration_companions` a la vez: sin
+ * esta tabla, un titular que ya figura como acompanante de otra persona (o al
+ * reves) seria invisible para la base de datos.
+ *
+ * Invariantes:
+ * - El indice unico parcial sobre
+ *   `(event_id, document_type, document_number) WHERE status = 'active'` es la
+ *   **unica defensa real** ante dos altas simultaneas con el mismo documento: al
+ *   no haber transacciones interactivas en D1, la consulta previa del servicio es
+ *   solo una comodidad para responder rapido y liberar el cupo sin gastarlo.
+ * - Es **parcial**: al cancelar el registro las filas pasan a `released`, de modo
+ *   que el documento vuelve a estar disponible sin perder la trazabilidad.
+ * - `participation_id` se guarda desnormalizado para reportes y para liberar por
+ *   sede; la sede y el evento del documento son siempre los del registro.
+ */
+export const registrationDocuments = sqliteTable(
+  'registration_documents',
+  {
+    id: idColumn(),
+    eventId: text('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    participationId: text('participation_id')
+      .notNull()
+      .references(() => eventEstablishments.id, { onDelete: 'restrict' }),
+    registrationId: text('registration_id')
+      .notNull()
+      .references(() => registrations.id, { onDelete: 'cascade' }),
+    role: text('role', { enum: REGISTRATION_DOCUMENT_ROLES }).notNull(),
+    documentType: text('document_type', { enum: DOCUMENT_TYPES }).notNull(),
+    /** Normalizado (sin puntos ni espacios) por el servicio. */
+    documentNumber: text('document_number').notNull(),
+    status: text('status', { enum: REGISTRATION_DOCUMENT_STATUSES }).notNull().default('active'),
+    releasedAt: timestampColumn('released_at'),
+    createdAt: createdAtColumn(),
+    updatedAt: updatedAtColumn(),
+  },
+  (table) => [
+    uniqueIndex('registration_documents_event_document_unique')
+      .on(table.eventId, table.documentType, table.documentNumber)
+      .where(sql`${table.status} = 'active'`),
+    index('registration_documents_registration_idx').on(table.registrationId),
+    index('registration_documents_participation_status_idx').on(
+      table.participationId,
+      table.status,
+    ),
+    index('registration_documents_document_idx').on(table.documentType, table.documentNumber),
   ],
 );

@@ -1,0 +1,23 @@
+
+> events@0.1.0 db:generate
+> drizzle-kit generate
+
+No config path provided, using default 'drizzle.config.ts'
+Reading config file 'C:\Users\DELL\Desktop\events\drizzle.config.ts'
+14 tables
+auth_attempts 5 columns 1 indexes 0 fks
+sessions 8 columns 3 indexes 1 fks
+users 13 columns 2 indexes 0 fks
+establishments 8 columns 2 indexes 0 fks
+event_establishments 15 columns 3 indexes 2 fks
+events 13 columns 2 indexes 1 fks
+registration_companions 7 columns 2 indexes 1 fks
+registration_documents 11 columns 4 indexes 3 fks
+registrations 15 columns 3 indexes 1 fks
+qr_codes 10 columns 3 indexes 3 fks
+qr_deliveries 11 columns 2 indexes 2 fks
+shift_assignments 11 columns 3 indexes 4 fks
+shifts 11 columns 3 indexes 1 fks
+capacity_adjustments 14 columns 3 indexes 3 fks
+
+[✓] Your SQL migration file ➜ migrations\0001_natural_war_machine.sql 🚀

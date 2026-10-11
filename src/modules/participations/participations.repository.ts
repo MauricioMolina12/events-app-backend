@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gt, lt, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, eq, gt, inArray, lt, ne, sql, type SQL } from 'drizzle-orm';
 import type { Database } from '../../db/client';
 import { withConstraintTranslation } from '../../db/constraints';
 import { newId } from '../../db/helpers';
@@ -131,6 +131,33 @@ export async function listParticipationsByEvent(
 }
 
 /**
+ * Participaciones de varios eventos en una sola consulta.
+ *
+ * La usan los listados que agrupan por evento (catalogo publico): una consulta
+ * por pagina en lugar de una por fila.
+ */
+export async function listParticipationsByEventIds(
+  db: Database,
+  eventIds: readonly string[],
+  filters: ParticipationFilters = {},
+): Promise<ParticipationRow[]> {
+  if (eventIds.length === 0) {
+    return [];
+  }
+
+  const conditions: SQL[] = [inArray(eventEstablishments.eventId, [...eventIds])];
+  if (filters.status !== undefined) {
+    conditions.push(eq(eventEstablishments.status, filters.status));
+  }
+
+  return db
+    .select()
+    .from(eventEstablishments)
+    .where(and(...conditions))
+    .orderBy(asc(eventEstablishments.createdAt), asc(eventEstablishments.id));
+}
+
+/**
  * Listado paginado de participaciones.
  *
  * El orden (`created_at` y `id` como desempate) es estable para que dos filas
@@ -164,6 +191,36 @@ export async function countParticipations(
     .where(conditions.length > 0 ? and(...conditions) : undefined);
 
   return row?.total ?? 0;
+}
+
+/**
+ * Suma titulares + acompanantes de las sedes vigentes del evento.
+ *
+ * Las canceladas no cuentan: ya no ofrecen cupo y ese aforo se puede reasignar.
+ * `excludeParticipationId` deja fuera la sede que se esta editando.
+ */
+export async function sumAllocatedEventCapacity(
+  db: Database,
+  eventId: string,
+  options: { readonly excludeParticipationId?: string } = {},
+): Promise<number> {
+  const conditions: SQL[] = [
+    eq(eventEstablishments.eventId, eventId),
+    ne(eventEstablishments.status, 'cancelled'),
+  ];
+
+  if (options.excludeParticipationId !== undefined) {
+    conditions.push(ne(eventEstablishments.id, options.excludeParticipationId));
+  }
+
+  const [row] = await db
+    .select({
+      total: sql<number>`coalesce(sum(${eventEstablishments.titularCapacity} + ${eventEstablishments.companionCapacity}), 0)`,
+    })
+    .from(eventEstablishments)
+    .where(and(...conditions));
+
+  return Number(row?.total ?? 0);
 }
 
 /**

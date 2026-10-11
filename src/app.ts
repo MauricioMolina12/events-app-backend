@@ -8,11 +8,17 @@ import { requestLoggerMiddleware } from './core/middleware/logger';
 import { requestIdMiddleware } from './core/middleware/request-id';
 import type { AppEnv } from './core/types/context';
 import { registerAuthRoutes } from './modules/auth/auth.routes';
+import { registerCheckInBoardRoutes } from './modules/check-in/check-in-board.routes';
+import { registerCheckInRoutes } from './modules/check-in/check-in.routes';
+import { registerDashboardRoutes } from './modules/dashboard/dashboard.routes';
 import { registerEstablishmentRoutes } from './modules/establishments/establishments.routes';
 import { registerEventRoutes } from './modules/events/events.routes';
 import { registerHealthRoutes } from './modules/health/health.routes';
 import { registerParticipationRoutes } from './modules/participations/participations.routes';
+import { registerPublicRoutes } from './modules/public/public.routes';
+import { registerRegistrationRoutes } from './modules/registrations/registrations.routes';
 import { registerUserRoutes } from './modules/users/users.routes';
+import { registerWorkspaceRoutes } from './modules/workspace/workspace.routes';
 
 /**
  * Construye la aplicacion Hono.
@@ -49,6 +55,12 @@ export function createApp(): OpenAPIHono<AppEnv> {
   registerEventRoutes(api);
   registerEstablishmentRoutes(api);
   registerParticipationRoutes(api);
+  registerRegistrationRoutes(api);
+  registerPublicRoutes(api);
+  registerCheckInRoutes(api);
+  registerCheckInBoardRoutes(api);
+  registerDashboardRoutes(api);
+  registerWorkspaceRoutes(api);
   app.route(API_PREFIX, api);
 
   /* --- Documentacion OpenAPI --- */
@@ -68,6 +80,26 @@ export function createApp(): OpenAPIHono<AppEnv> {
       {
         name: 'Participaciones',
         description: 'Una sede dentro de un evento: cupos y ventanas propias.',
+      },
+      {
+        name: 'Registros',
+        description: 'Mesa de registro: alta manual, consulta y cancelacion.',
+      },
+      {
+        name: 'Publico',
+        description: 'Catalogo publicado y formulario de inscripcion (sin sesion).',
+      },
+      {
+        name: 'Ingreso',
+        description: 'Escaneo del QR en puerta y turnos consecutivos por sede.',
+      },
+      {
+        name: 'Tablero',
+        description: 'Vista general, evolucion de inscripciones y actividad reciente.',
+      },
+      {
+        name: 'Espacio',
+        description: 'Identidad compartida del espacio y tema personal de cada cuenta.',
       },
     ],
   });

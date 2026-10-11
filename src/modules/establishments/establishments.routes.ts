@@ -24,9 +24,10 @@ import {
 /**
  * Rutas del catalogo de sedes.
  *
- * Lectura para `admin` y `operator`; escritura solo para `admin`. Una sede no se
- * borra: se desactiva (`status: inactive`), porque las participaciones, registros
- * y accesos historicos la referencian.
+ * Lectura para `admin` y `operator`. Crear sedes lo pueden `admin` y `operator`
+ * (el dueno del evento arma su catalogo); actualizar o desactivar queda en el
+ * administrador. Una sede no se borra: se desactiva (`status: inactive`), porque
+ * las participaciones, registros y accesos historicos la referencian.
  */
 
 const establishmentCodeSchema = z
@@ -157,7 +158,7 @@ const createEstablishmentRoute = createRoute({
   method: 'post',
   path: '/establishments',
   tags: ['Establecimientos'],
-  middleware: [requireAuth, requireRole('admin')],
+  middleware: [requireAuth, requireRole('admin', 'operator')],
   summary: 'Crea un establecimiento',
   description: [
     'La sede nace `active` (o en el estado indicado) y conserva el `code` para',
@@ -178,7 +179,7 @@ const createEstablishmentRoute = createRoute({
       content: { 'application/json': { schema: establishmentResponseSchema } },
     },
     401: errorResponse('Sin sesion activa.'),
-    403: errorResponse('La cuenta autenticada no es administradora.'),
+    403: errorResponse('La cuenta autenticada no es `admin` ni `operator`.'),
     409: errorResponse('El codigo ya esta en uso (`ESTABLISHMENT_CODE_ALREADY_USED`).'),
     422: errorResponse('El cuerpo no cumple el formato esperado.'),
   },

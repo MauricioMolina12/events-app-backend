@@ -1,6 +1,6 @@
 import { AppError } from '../core/errors/app-error';
 import { ErrorCode } from '../core/errors/error-codes';
-import { AUTH_DEFAULTS } from './constants';
+import { AUTH_DEFAULTS, PBKDF2_MAX_ITERATIONS } from './constants';
 
 /** Entornos soportados. `local` tambien cubre el modo preview de Wrangler. */
 export type RuntimeEnvironment = 'local' | 'development' | 'production';
@@ -17,6 +17,8 @@ export interface AuthConfig {
   readonly cookieName: string;
   /** `Secure` en la cookie: se desactiva solo en `local`, que va por http. */
   readonly secureCookies: boolean;
+  /** `None` solo en development, donde localhost consume el Worker cross-site. */
+  readonly cookieSameSite: 'Lax' | 'None';
   /** Fallos dentro de la ventana que disparan el primer bloqueo. */
   readonly maxFailedAttempts: number;
   /** Duracion base del bloqueo, en minutos. */
@@ -129,7 +131,7 @@ export function readRuntimeConfig(env: CloudflareBindings): RuntimeConfig {
         'PBKDF2_ITERATIONS',
         env.PBKDF2_ITERATIONS,
         AUTH_DEFAULTS.pbkdf2Iterations,
-        { min: 1_000, max: 1_000_000 },
+        { min: 1_000, max: PBKDF2_MAX_ITERATIONS },
       ),
       sessionTtlHours: parseInteger(
         'SESSION_TTL_HOURS',
@@ -141,6 +143,9 @@ export function readRuntimeConfig(env: CloudflareBindings): RuntimeConfig {
       // En `local` el desarrollo ocurre sobre http: una cookie `Secure` seria
       // descartada por el navegador y el login pareceria roto.
       secureCookies: environment !== 'local',
+      // El frontend local y el Worker de desarrollo son sitios distintos; Chrome
+      // descarta `Lax` en fetch cross-site aunque CORS permita las credenciales.
+      cookieSameSite: environment === 'development' ? 'None' : 'Lax',
       maxFailedAttempts: parseInteger(
         'AUTH_MAX_FAILED_ATTEMPTS',
         env.AUTH_MAX_FAILED_ATTEMPTS,

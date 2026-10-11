@@ -3,7 +3,7 @@ import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-o
 import { users } from './auth';
 import { createdAtColumn, idColumn, requiredTimestampColumn, timestampColumn, updatedAtColumn } from './columns';
 import { eventEstablishments } from './events';
-import { registrations } from './registrations';
+import { registrationCompanions, registrations } from './registrations';
 
 /* ------------------------------------------------------------------ *
  * Turnos y control de acceso en puerta.
@@ -88,5 +88,59 @@ export const shiftAssignments = sqliteTable(
       .where(sql`${table.status} IN ('assigned', 'checked_in')`),
     index('shift_assignments_shift_status_idx').on(table.shiftId, table.status),
     index('shift_assignments_registration_idx').on(table.registrationId),
+  ],
+);
+
+/**
+ * Ultimo turno entregado en cada sede.
+ *
+ * La asignacion hace un upsert que suma el tamano del grupo y, dentro del mismo
+ * `db.batch`, inserta los turnos leyendo el valor resultante. SQLite ejecuta las
+ * escrituras de una en una, asi que dos escaneos simultaneos nunca leen el mismo
+ * contador; si la insercion falla, el batch se revierte y el numero no se pierde.
+ */
+export const turnCounters = sqliteTable(
+  'turn_counters',
+  {
+    participationId: text('participation_id')
+      .primaryKey()
+      .references(() => eventEstablishments.id, { onDelete: 'restrict' }),
+    lastNumber: integer('last_number').notNull().default(0),
+    updatedAt: updatedAtColumn(),
+  },
+  (table) => [check('turn_counters_last_number_check', sql`${table.lastNumber} >= 0`)],
+);
+
+/**
+ * Turno consecutivo de una persona, entregado al escanear el QR del titular.
+ *
+ * Un registro recibe un turno por persona: el titular en la posicion 0 y sus
+ * acompanantes despues, con numeros seguidos. `full_name` es una copia: el turno
+ * impreso no cambia aunque luego se corrija el nombre.
+ */
+export const turns = sqliteTable(
+  'turns',
+  {
+    id: idColumn(),
+    participationId: text('participation_id')
+      .notNull()
+      .references(() => eventEstablishments.id, { onDelete: 'restrict' }),
+    registrationId: text('registration_id')
+      .notNull()
+      .references(() => registrations.id, { onDelete: 'restrict' }),
+    companionId: text('companion_id').references(() => registrationCompanions.id, {
+      onDelete: 'set null',
+    }),
+    position: integer('position').notNull(),
+    fullName: text('full_name').notNull(),
+    number: integer('number').notNull(),
+    assignedAt: requiredTimestampColumn('assigned_at'),
+    assignedBy: text('assigned_by').references(() => users.id, { onDelete: 'set null' }),
+  },
+  (table) => [
+    uniqueIndex('turns_participation_number_unique').on(table.participationId, table.number),
+    uniqueIndex('turns_registration_position_unique').on(table.registrationId, table.position),
+    check('turns_number_check', sql`${table.number} >= 1`),
+    check('turns_position_check', sql`${table.position} >= 0`),
   ],
 );
