@@ -13,6 +13,7 @@ export interface AuthPrincipal {
   readonly fullName: string;
   readonly role: UserRole;
   readonly status: UserStatus;
+  readonly modules?: readonly string[];
 }
 
 /** Sesion validada que sostiene la autenticacion de la peticion. */

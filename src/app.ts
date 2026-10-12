@@ -10,6 +10,7 @@ import type { AppEnv } from './core/types/context';
 import { registerAuthRoutes } from './modules/auth/auth.routes';
 import { registerCheckInBoardRoutes } from './modules/check-in/check-in-board.routes';
 import { registerCheckInRoutes } from './modules/check-in/check-in.routes';
+import { registerClientRoutes } from './modules/clients/clients.routes';
 import { registerDashboardRoutes } from './modules/dashboard/dashboard.routes';
 import { registerEstablishmentRoutes } from './modules/establishments/establishments.routes';
 import { registerEventRoutes } from './modules/events/events.routes';
@@ -19,6 +20,7 @@ import { registerPublicRoutes } from './modules/public/public.routes';
 import { registerRegistrationRoutes } from './modules/registrations/registrations.routes';
 import { registerUserRoutes } from './modules/users/users.routes';
 import { registerWorkspaceRoutes } from './modules/workspace/workspace.routes';
+import { registerCollaboratorRoutes } from './modules/collaborators/collaborators.routes';
 
 /**
  * Construye la aplicacion Hono.
@@ -52,6 +54,7 @@ export function createApp(): OpenAPIHono<AppEnv> {
   registerAuthRoutes(api);
   registerHealthRoutes(api);
   registerUserRoutes(api);
+  registerClientRoutes(api);
   registerEventRoutes(api);
   registerEstablishmentRoutes(api);
   registerParticipationRoutes(api);
@@ -61,6 +64,7 @@ export function createApp(): OpenAPIHono<AppEnv> {
   registerCheckInBoardRoutes(api);
   registerDashboardRoutes(api);
   registerWorkspaceRoutes(api);
+  registerCollaboratorRoutes(api);
   app.route(API_PREFIX, api);
 
   /* --- Documentacion OpenAPI --- */

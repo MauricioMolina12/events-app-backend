@@ -103,10 +103,11 @@ export async function assignTurns(
   now: Date = new Date(),
 ): Promise<TurnRow[] | null> {
   const size = input.people.length;
-  const [first, ...rest] = input.people.map((person) => {
-    // `last_number` ya incluye el grupo completo: la persona en la posicion `i`
-    // recibe `last_number - (size - 1 - i)`.
-    const offset = size - 1 - person.position;
+  const [first, ...rest] = input.people.map((person, index) => {
+    // `last_number` ya incluye el grupo completo: la persona en el indice `i`
+    // recibe `last_number - (size - 1 - i)`. El `position` guardado puede no
+    // coincidir con el indice cuando se agregan acompanantes despues.
+    const offset = size - 1 - index;
     return db
       .insert(turns)
       .values({

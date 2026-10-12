@@ -1,6 +1,9 @@
 import { env } from 'cloudflare:test';
+import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createDb } from '../../src/db/client';
+import { users } from '../../src/db/schema';
+import { ensureClientForOperator } from '../../src/modules/clients/clients.service';
 import * as establishments from '../../src/modules/establishments/establishments.repository';
 import * as events from '../../src/modules/events/events.repository';
 import * as participations from '../../src/modules/participations/participations.repository';
@@ -62,9 +65,29 @@ async function seedEvent(
   slug: string,
   options: Partial<Parameters<typeof events.insertEvent>[1]> = {},
 ): Promise<{ eventId: string; barby: string; cupidos: string }> {
+  const [operator] = await db.select().from(users).where(eq(users.role, 'operator')).limit(1);
+  const client = operator
+    ? await ensureClientForOperator(
+        db,
+        {
+          id: operator.id,
+          email: operator.email,
+          fullName: operator.fullName,
+          status: operator.status,
+        },
+        NOW,
+      )
+    : null;
   const event = await events.insertEvent(
     db,
-    { slug, name: `Evento ${slug}`, status: 'published', ...options },
+    {
+      slug,
+      name: `Evento ${slug}`,
+      status: 'published',
+      createdBy: operator?.id ?? null,
+      clientId: client?.id ?? null,
+      ...options,
+    },
     NOW,
   );
   return {
@@ -93,7 +116,21 @@ async function register(cookie: string, participationId: string, companions: rea
 }
 
 async function scan(cookie: string, code: string): Promise<void> {
-  const response = await api('/check-in/scan', cookie, { method: 'POST', body: JSON.stringify({ code }) });
+  const preview = await api('/check-in/lookup', cookie, {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+  expect(preview.status).toBe(200);
+  const companions = (await preview.json<{ data: { companions: { id: string }[] } }>()).data
+    .companions;
+  const response = await api('/check-in/scan', cookie, {
+    method: 'POST',
+    body: JSON.stringify({
+      code,
+      holderPresent: true,
+      presentCompanionIds: companions.map((companion) => companion.id),
+    }),
+  });
   expect(response.status).toBe(200);
 }
 

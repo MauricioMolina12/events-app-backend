@@ -4,7 +4,8 @@ import { apiSuccess } from '../../core/http/responses';
 import type { AppEnv } from '../../core/types/context';
 import { createDb } from '../../db/client';
 import { EVENT_STATUSES } from '../../db/schema';
-import { requireAuth, requireRole } from '../auth/auth.middleware';
+import { currentAuthUser, requireAuth, requireRole } from '../auth/auth.middleware';
+import { countActiveClients, findClientByOwner } from '../clients/clients.repository';
 import {
   ACTIVITY_LIMITS,
   getOverview,
@@ -68,8 +69,17 @@ const overviewSchema = z
         people: z.number().int(),
         checkedIn: z.number().int(),
         attendanceRate: z.number().min(0).max(1),
+        capacity: z.number().int(),
+        companions: z.number().int(),
+        available: z.number().int(),
+        occupancy: z.number(),
+        occupancyLevel: z.enum(['unassigned', 'normal', 'high', 'critical', 'full']),
+        client: z
+          .object({ id: z.string(), slug: z.string(), displayName: z.string() })
+          .nullable(),
       }),
     ),
+    clients: z.object({ total: z.number().int() }).nullable(),
   })
   .openapi('DashboardOverview');
 
@@ -228,11 +238,20 @@ function toActivity(item: ActivityItem) {
 }
 
 const overviewHandler: RouteHandler<typeof overviewRoute, AppEnv> = async (c) => {
-  const overview = await getOverview(createDb(c.env));
+  const db = createDb(c.env);
+  const actor = currentAuthUser(c);
+  const owned = actor.role === 'operator' ? await findClientByOwner(db, actor.id) : null;
+  const overview =
+    actor.role === 'operator'
+      ? owned
+        ? await getOverview(db, { clientId: owned.id })
+        : await getOverview(db, { clientId: 'none' })
+      : await getOverview(db, { clientCount: await countActiveClients(db) });
   return c.json(
     apiSuccess({
       generatedAt: overview.generatedAt.toISOString(),
       events: overview.events,
+      clients: overview.clients,
       items: overview.items.map((item) => ({
         ...item,
         sedes: [...item.sedes],
@@ -247,13 +266,17 @@ const overviewHandler: RouteHandler<typeof overviewRoute, AppEnv> = async (c) =>
 };
 
 const timelineHandler: RouteHandler<typeof timelineRoute, AppEnv> = async (c) => {
-  const timeline = await getRegistrationTimeline(createDb(c.env), c.req.valid('query'));
+  const db = createDb(c.env);
+  const clientId = await operatorClientFilter(db, currentAuthUser(c));
+  const timeline = await getRegistrationTimeline(db, c.req.valid('query'), new Date(), clientId);
   return c.json(apiSuccess({ ...timeline, buckets: [...timeline.buckets] }), 200);
 };
 
 const activityHandler: RouteHandler<typeof activityRoute, AppEnv> = async (c) => {
   const { limit, ...scope } = c.req.valid('query');
-  const items = await getRecentActivity(createDb(c.env), scope, limit);
+  const db = createDb(c.env);
+  const clientId = await operatorClientFilter(db, currentAuthUser(c));
+  const items = await getRecentActivity(db, scope, limit, clientId);
   return c.json(apiSuccess(items.map(toActivity)), 200);
 };
 
@@ -262,4 +285,14 @@ export function registerDashboardRoutes(app: OpenAPIHono<AppEnv>): void {
   app.openapi(overviewRoute, overviewHandler);
   app.openapi(timelineRoute, timelineHandler);
   app.openapi(activityRoute, activityHandler);
+}
+
+async function operatorClientFilter(
+  db: ReturnType<typeof createDb>,
+  actor: { role: string; id: string },
+): Promise<string | undefined> {
+  if (actor.role !== 'operator') {
+    return undefined;
+  }
+  return (await findClientByOwner(db, actor.id))?.id ?? 'none';
 }

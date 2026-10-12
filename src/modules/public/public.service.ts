@@ -2,8 +2,13 @@ import { AppError } from '../../core/errors/app-error';
 import { ErrorCode } from '../../core/errors/error-codes';
 import { clampLimit, clampOffset, type PaginationLimits } from '../../core/http/pagination';
 import type { Database } from '../../db/client';
-import { listEstablishmentSummaries } from '../establishments/establishments.service';
+import {
+  getActiveClientBySlug,
+  listVisibleClients,
+  toPublicClient,
+} from '../clients/clients.service';
 import type { EstablishmentRow } from '../establishments/establishments.repository';
+import { listEstablishmentSummaries } from '../establishments/establishments.service';
 import type { EventRow } from '../events/events.repository';
 import { getEventByReference, listEventCatalog } from '../events/events.service';
 import type { ParticipationRow } from '../participations/participations.repository';
@@ -52,6 +57,7 @@ export interface PublicEventListQuery {
   readonly search?: string;
   readonly limit?: number;
   readonly offset?: number;
+  readonly clientId?: string;
 }
 
 export interface PublicEventPage {
@@ -79,6 +85,7 @@ export async function listPublicEvents(
   const page = await listEventCatalog(db, {
     status: 'published',
     search: query.search,
+    clientId: query.clientId,
     limit,
     offset,
   });
@@ -113,6 +120,20 @@ export async function getPublicEvent(
   const participations = await publicParticipationsByEvent(db, [event], now);
 
   return toPublicEvent(event, participations.get(event.id) ?? []);
+}
+
+export async function listPublicClientDirectory(db: Database) {
+  return (await listVisibleClients(db)).map((row) => toPublicClient(row));
+}
+
+export async function listPublicClientEvents(
+  db: Database,
+  slug: string,
+  query: PublicEventListQuery = {},
+  now: Date = new Date(),
+): Promise<PublicEventPage> {
+  const client = await getActiveClientBySlug(db, slug);
+  return listPublicEvents(db, { ...query, clientId: client.id }, now);
 }
 
 /**
@@ -155,6 +176,29 @@ export async function getPublicRegistration(
   id: string,
 ): Promise<RegistrationDetail> {
   return getRegistrationDetail(db, id);
+}
+
+export async function searchPublicRegistrations(
+  db: Database,
+  input: { event: string; query: string },
+): Promise<RegistrationDetail[]> {
+  const query = input.query.trim();
+  if (query.length < 2) {
+    return [];
+  }
+  const event = await getEventByReference(db, input.event);
+  if (event.status !== 'published') {
+    throw AppError.notFound(ErrorCode.EVENT_NOT_FOUND, 'El evento no existe.', {
+      details: { event: input.event },
+    });
+  }
+  const { searchTickets } = await import('../check-in/check-in.service');
+  const hits = await searchTickets(db, { eventId: event.id, query });
+  const details: RegistrationDetail[] = [];
+  for (const hit of hits) {
+    details.push(await getRegistrationDetail(db, hit.ticket.registration.id));
+  }
+  return details;
 }
 
 /** Cada evento con las sedes abiertas que le corresponden, ya mapeadas. */

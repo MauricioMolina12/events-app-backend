@@ -74,6 +74,21 @@ export const UNIQUE_INVARIANTS: readonly UniqueInvariant[] = [
       AppError.conflict(ErrorCode.EVENT_SLUG_ALREADY_USED, 'Ya existe un evento con ese slug.'),
   },
   {
+    index: 'clients_slug_unique',
+    columns: ['clients.slug'],
+    error: () =>
+      AppError.conflict(
+        ErrorCode.VALIDATION_ERROR,
+        'Ya existe un cliente con ese identificador publico.',
+      ),
+  },
+  {
+    index: 'clients_owner_unique',
+    columns: ['clients.owner_user_id'],
+    error: () =>
+      AppError.conflict(ErrorCode.VALIDATION_ERROR, 'Esa cuenta ya tiene un espacio de cliente.'),
+  },
+  {
     index: 'establishments_code_unique',
     columns: ['establishments.code'],
     error: () =>

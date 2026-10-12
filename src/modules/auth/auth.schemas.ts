@@ -19,6 +19,7 @@ export const authenticatedUserSchema = z
     fullName: z.string(),
     role: z.enum(USER_ROLES),
     status: z.enum(USER_STATUSES),
+    modules: z.array(z.string()).optional(),
   })
   .openapi('AuthenticatedUser');
 

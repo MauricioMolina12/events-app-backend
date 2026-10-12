@@ -6,8 +6,9 @@ import { apiSuccess } from '../../core/http/responses';
 import type { AppEnv } from '../../core/types/context';
 import { createDb } from '../../db/client';
 import { fromIsoString } from '../../db/helpers';
-import { EVENT_STATUSES } from '../../db/schema';
+import { EVENT_STATUSES, REGISTRATION_SCOPES } from '../../db/schema';
 import { currentAuthUser, requireAuth, requireRole } from '../auth/auth.middleware';
+import { findClientById, findClientByOwner, listClients } from '../clients/clients.repository';
 import { getUserById } from '../users/users.service';
 import { assertCanManageEvent } from './event-access';
 import { EVENT_CAPACITY_MAX } from './event-capacity';
@@ -16,8 +17,11 @@ import {
   SLUG_MIN_LENGTH,
   SLUG_PATTERN,
   eventSchema,
+  ticketDesignSchema,
   toEvent,
+  type EventClientSummary,
 } from './events.schemas';
+import type { EventRow } from './events.repository';
 import {
   EVENT_LIST_DEFAULT_LIMIT,
   EVENT_LIST_MAX_LIMIT,
@@ -132,13 +136,14 @@ const listEventsRoute = createRoute({
 const listEventsHandler: RouteHandler<typeof listEventsRoute, AppEnv> = async (c) => {
   const actor = currentAuthUser(c);
   const query = c.req.valid('query');
-  const page = await listEventCatalog(createDb(c.env), {
+  const db = createDb(c.env);
+  const page = await listEventCatalog(db, {
     ...query,
     createdBy: actor.role === 'operator' ? actor.id : undefined,
   });
 
   return c.json(
-    apiSuccess(page.items.map(toEvent), {
+    apiSuccess(await presentEvents(db, page.items), {
       total: page.total,
       limit: page.limit,
       offset: page.offset,
@@ -170,9 +175,10 @@ const getEventRoute = createRoute({
 });
 
 const getEventHandler: RouteHandler<typeof getEventRoute, AppEnv> = async (c) => {
-  const event = await getEventByReference(createDb(c.env), c.req.valid('param').idOrSlug);
+  const db = createDb(c.env);
+  const event = await getEventByReference(db, c.req.valid('param').idOrSlug);
   assertCanManageEvent(currentAuthUser(c), event);
-  return c.json(apiSuccess(toEvent(event)), 200);
+  return c.json(apiSuccess(await presentEvent(db, event)), 200);
 };
 
 const createEventBodySchema = z
@@ -205,6 +211,8 @@ const createEventBodySchema = z
         description:
           'Operador activo al que queda asignado el evento. Si se omite, el dueno es el administrador que lo crea.',
       }),
+    registrationScope: z.enum(REGISTRATION_SCOPES).optional(),
+    ticketDesign: ticketDesignSchema.nullable().optional(),
   })
   .openapi('CreateEventRequest');
 
@@ -248,6 +256,8 @@ const createEventRoute = createRoute({
 const createEventHandler: RouteHandler<typeof createEventRoute, AppEnv> = async (c) => {
   const body = c.req.valid('json');
   const db = createDb(c.env);
+  const createdBy = await resolveEventOwner(db, body.ownerId, currentAuthUser(c).id);
+  const ownerClient = await findClientByOwner(db, createdBy);
   const event = await createEvent(db, {
     slug: body.slug,
     name: body.name,
@@ -259,10 +269,13 @@ const createEventHandler: RouteHandler<typeof createEventRoute, AppEnv> = async 
     registrationClosesAt: toDateOrNull(body.registrationClosesAt),
     capacity: body.capacity,
     status: body.status,
-    createdBy: await resolveEventOwner(db, body.ownerId, currentAuthUser(c).id),
+    createdBy,
+    clientId: ownerClient?.id ?? null,
+    registrationScope: body.registrationScope,
+    ticketDesign: body.ticketDesign === undefined ? undefined : serializeDesign(body.ticketDesign),
   });
 
-  return c.json(apiSuccess(toEvent(event)), 201);
+  return c.json(apiSuccess(await presentEvent(db, event)), 201);
 };
 
 const updateEventBodySchema = z
@@ -277,6 +290,8 @@ const updateEventBodySchema = z
     registrationClosesAt: eventDateSchema,
     capacity: z.number().int().min(0).max(EVENT_CAPACITY_MAX).optional(),
     status: z.enum(EVENT_STATUSES).optional(),
+    registrationScope: z.enum(REGISTRATION_SCOPES).optional(),
+    ticketDesign: ticketDesignSchema.nullable().optional(),
   })
   .openapi('UpdateEventRequest');
 
@@ -337,9 +352,11 @@ const updateEventHandler: RouteHandler<typeof updateEventRoute, AppEnv> = async 
     registrationClosesAt: toDateOrNull(body.registrationClosesAt),
     capacity: body.capacity,
     status: body.status,
+    registrationScope: body.registrationScope,
+    ticketDesign: body.ticketDesign === undefined ? undefined : serializeDesign(body.ticketDesign),
   });
 
-  return c.json(apiSuccess(toEvent(event)), 200);
+  return c.json(apiSuccess(await presentEvent(db, event)), 200);
 };
 
 /**
@@ -364,6 +381,29 @@ async function resolveEventOwner(
   }
 
   return owner.id;
+}
+
+function clientSummary(
+  row: { id: string; slug: string; displayName: string } | null | undefined,
+): EventClientSummary | null {
+  return row ? { id: row.id, slug: row.slug, displayName: row.displayName } : null;
+}
+
+async function presentEvent(db: Parameters<typeof findClientById>[0], event: EventRow) {
+  const client = event.clientId ? await findClientById(db, event.clientId) : null;
+  return toEvent(event, clientSummary(client));
+}
+
+async function presentEvents(db: Parameters<typeof listClients>[0], rows: readonly EventRow[]) {
+  const catalog = await listClients(db);
+  const byId = new Map(catalog.map((client) => [client.id, client]));
+  return rows.map((event) =>
+    toEvent(event, event.clientId ? clientSummary(byId.get(event.clientId)) : null),
+  );
+}
+
+function serializeDesign(design: unknown): string | null {
+  return design == null ? null : JSON.stringify(design);
 }
 
 /** Convierte un ISO-8601 del cuerpo a `Date`; conserva `null` y `undefined`. */

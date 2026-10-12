@@ -35,10 +35,14 @@ export const requireAuth = createMiddleware<AppEnv>(async (c, next) => {
   const resolution = await resolveAuth(createDb(c.env), sessionTokenOf(c));
 
   switch (resolution.status) {
-    case 'authenticated':
-      c.set('authUser', toAuthPrincipal(resolution.user));
+    case 'authenticated': {
+      const principal = toAuthPrincipal(resolution.user);
+      const { resolveAccess } = await import('../collaborators/collaborators.service');
+      const access = await resolveAccess(createDb(c.env), principal.id, principal.role);
+      c.set('authUser', { ...principal, modules: [...access.modules] });
       c.set('authSession', toAuthSessionInfo(resolution.session));
       break;
+    }
     case 'expired':
       throw AppError.unauthorized(
         ErrorCode.SESSION_EXPIRED,

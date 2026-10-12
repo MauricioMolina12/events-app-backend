@@ -15,6 +15,13 @@
       "when": 1791137071726,
       "tag": "0001_natural_war_machine",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791800000000,
+      "tag": "0002_ticket_scope_collaborators",
+      "breakpoints": true
     }
   ]
 }

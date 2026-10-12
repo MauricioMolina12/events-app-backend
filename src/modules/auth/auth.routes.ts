@@ -22,6 +22,7 @@ import {
   toAuthPrincipal,
 } from './auth.schemas';
 import { login, logoutByToken } from './auth.service';
+import { resolveAccess } from '../collaborators/collaborators.service';
 import {
   cookieSettingsForRequest,
   expiredSessionCookieOptions,
@@ -124,7 +125,7 @@ const loginHandler: RouteHandler<typeof loginRoute, AppEnv> = async (c) => {
 
   return c.json(
     apiSuccess({
-      user: toAuthPrincipal(outcome.user),
+      user: await presentUser(createDb(c.env), outcome.user),
       session: toActiveSession({
         id: outcome.session.id,
         expiresAt: outcome.session.expiresAt,
@@ -196,7 +197,7 @@ const signupHandler: RouteHandler<typeof signupRoute, AppEnv> = async (c) => {
 
   return c.json(
     apiSuccess({
-      user: toAuthPrincipal(user),
+      user: await presentUser(db, user),
       session: toActiveSession({
         id: session.id,
         expiresAt: session.expiresAt,
@@ -269,6 +270,12 @@ const meHandler: RouteHandler<typeof meRoute, AppEnv> = (c) => {
     200,
   );
 };
+
+async function presentUser(db: ReturnType<typeof createDb>, user: Parameters<typeof toAuthPrincipal>[0]) {
+  const principal = toAuthPrincipal(user);
+  const access = await resolveAccess(db, principal.id, principal.role);
+  return { ...principal, modules: [...access.modules] };
+}
 
 /** Registra las rutas de autenticacion. */
 export function registerAuthRoutes(app: OpenAPIHono<AppEnv>): void {

@@ -88,6 +88,11 @@ export const ErrorCode = {
   TURN_ASSIGNMENT_CONFLICT: 'TURN_ASSIGNMENT_CONFLICT',
   CHECK_IN_OUTSIDE_WINDOW: 'CHECK_IN_OUTSIDE_WINDOW',
   CHECK_IN_ALREADY_ASSIGNED: 'CHECK_IN_ALREADY_ASSIGNED',
+  /**
+   * El QR es del titular. Si no esta en la puerta no se asigna turno ni se
+   * liberan acompanantes: el grupo puede llegar mas tarde.
+   */
+  CHECK_IN_HOLDER_ABSENT: 'CHECK_IN_HOLDER_ABSENT',
 
   /* --- Capacidad y redistribucion --- */
   CAPACITY_ADJUSTMENT_NOT_FOUND: 'CAPACITY_ADJUSTMENT_NOT_FOUND',

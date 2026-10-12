@@ -94,6 +94,8 @@ export interface RegistrationDetail {
   readonly companions: readonly RegistrationCompanionRow[];
   /** Token en claro del QR; solo existe en el alta, nunca se vuelve a leer. */
   readonly qrToken?: string;
+  /** Id de la fila `qr_codes` emitida en el alta; sirve para auditar la entrega. */
+  readonly qrCodeId?: string;
 }
 
 export interface RegistrationWindowSource {
@@ -466,12 +468,18 @@ export async function createRegistration(
     );
 
     const qrToken = crypto.randomUUID();
-    await insertQrCode(db, created.registration.id, await sha256Hex(qrToken), now);
+    const qrCodeId = await insertQrCode(
+      db,
+      created.registration.id,
+      await sha256Hex(qrToken),
+      now,
+    );
 
     return {
       registration: created.registration,
       companions: created.companions,
       qrToken,
+      qrCodeId,
     };
   } catch (error) {
     await releaseTitularSlot(db, participation.id, now);

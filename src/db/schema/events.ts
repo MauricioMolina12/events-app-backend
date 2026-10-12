@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { createdAtColumn, idColumn, timestampColumn, updatedAtColumn } from './columns';
 import { users } from './auth';
+import { clients } from './clients';
 
 /* ------------------------------------------------------------------ *
  * Eventos, establecimientos y participaciones.
@@ -15,6 +16,9 @@ export type EstablishmentStatus = (typeof ESTABLISHMENT_STATUSES)[number];
 
 export const PARTICIPATION_STATUSES = ['open', 'closed', 'cancelled'] as const;
 export type ParticipationStatus = (typeof PARTICIPATION_STATUSES)[number];
+
+export const REGISTRATION_SCOPES = ['per_venue', 'all_venues'] as const;
+export type RegistrationScope = (typeof REGISTRATION_SCOPES)[number];
 
 /**
  * Eventos.
@@ -40,12 +44,21 @@ export const events = sqliteTable(
     capacity: integer('capacity').notNull().default(0),
     status: text('status', { enum: EVENT_STATUSES }).notNull().default('draft'),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    /** Cliente dueno. Nulo si el evento quedo en la plataforma y no en un operador. */
+    clientId: text('client_id').references(() => clients.id, { onDelete: 'set null' }),
+    /** `per_venue`: una inscripcion por sucursal. `all_venues`: una vale en todas. */
+    registrationScope: text('registration_scope', { enum: REGISTRATION_SCOPES })
+      .notNull()
+      .default('per_venue'),
+    /** JSON del diseno del ticket de invitacion. */
+    ticketDesign: text('ticket_design'),
     createdAt: createdAtColumn(),
     updatedAt: updatedAtColumn(),
   },
   (table) => [
     uniqueIndex('events_slug_unique').on(table.slug),
     index('events_status_idx').on(table.status),
+    index('events_client_idx').on(table.clientId),
     check(
       'events_window_check',
       sql`${table.registrationOpensAt} IS NULL OR ${table.registrationClosesAt} IS NULL OR ${table.registrationOpensAt} <= ${table.registrationClosesAt}`,

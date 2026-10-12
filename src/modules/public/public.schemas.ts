@@ -1,6 +1,7 @@
 import { z } from '@hono/zod-openapi';
 import { toIsoString } from '../../db/helpers';
-import { DOCUMENT_TYPES, REGISTRATION_STATUSES } from '../../db/schema';
+import { DOCUMENT_TYPES, REGISTRATION_SCOPES, REGISTRATION_STATUSES } from '../../db/schema';
+import { parseTicketDesign, ticketDesignSchema } from '../events/events.schemas';
 import type { EstablishmentRow } from '../establishments/establishments.repository';
 import type { EventRow } from '../events/events.repository';
 import type { ParticipationRow } from '../participations/participations.repository';
@@ -60,6 +61,8 @@ export const publicEventSchema = z
     endsAt: z.string().nullable(),
     registrationOpensAt: z.string().nullable(),
     registrationClosesAt: z.string().nullable(),
+    registrationScope: z.enum(REGISTRATION_SCOPES),
+    ticketDesign: ticketDesignSchema.nullable(),
     participations: z.array(publicParticipationSchema),
   })
   .openapi('PublicEvent');
@@ -145,6 +148,8 @@ export function toPublicEvent(event: EventRow, participations: readonly PublicPa
     endsAt: toIsoString(event.endsAt),
     registrationOpensAt: toIsoString(event.registrationOpensAt),
     registrationClosesAt: toIsoString(event.registrationClosesAt),
+    registrationScope: event.registrationScope,
+    ticketDesign: parseTicketDesign(event.ticketDesign),
     participations: [...participations],
   };
 }

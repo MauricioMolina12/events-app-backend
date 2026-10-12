@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, gte, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, inArray, ne, or, sql, type SQL } from 'drizzle-orm';
 import type { Database } from '../../db/client';
 import { mapConstraintViolation, withConstraintTranslation } from '../../db/constraints';
 import { newId } from '../../db/helpers';
@@ -258,10 +258,11 @@ export async function insertQrCode(
   registrationId: string,
   tokenHash: string,
   now: Date = new Date(),
-): Promise<void> {
+): Promise<string> {
+  const id = newId();
   await withConstraintTranslation(async () => {
     await db.insert(qrCodes).values({
-      id: newId(),
+      id,
       registrationId,
       tokenHash,
       status: 'active',
@@ -273,6 +274,7 @@ export async function insertQrCode(
       createdAt: now,
     });
   });
+  return id;
 }
 
 export async function findRegistrationById(
@@ -545,4 +547,104 @@ export async function cancelRegistration(
   );
 
   return cancelled;
+}
+
+export interface ReleaseNoShowCompanionsInput {
+  readonly participationId: string;
+  readonly registrationId: string;
+  readonly companions: readonly RegistrationCompanionRow[];
+}
+
+/**
+ * Quita acompanantes que no llegaron a la puerta: libera su cupo de sede, su
+ * documento en el evento y baja `companions_count` para que otro grupo pueda
+ * usar ese lugar.
+ *
+ * Solo se llama despues de asignar turnos al titular (y a quienes si vinieron).
+ * Las filas se borran porque el esquema no tiene estado de no-show: el cupo
+ * consumido vive en el contador, y dejarlas informativas haria que la mesa
+ * siguiera mostrando a quien no asistio.
+ */
+export async function releaseNoShowCompanions(
+  db: Database,
+  input: ReleaseNoShowCompanionsInput,
+  now: Date = new Date(),
+): Promise<void> {
+  const { companions } = input;
+  if (companions.length === 0) {
+    return;
+  }
+
+  const ids = companions.map((companion) => companion.id);
+  const documents = companions.filter(
+    (companion) => companion.documentType !== null && companion.documentNumber !== null,
+  );
+
+  const countUpdate = db
+    .update(registrations)
+    .set({
+      companionsCount: sql`${registrations.companionsCount} - ${companions.length}`,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(registrations.id, input.registrationId),
+        eq(registrations.status, 'confirmed'),
+        gte(registrations.companionsCount, companions.length),
+      ),
+    );
+
+  const capacityUpdate = db
+    .update(eventEstablishments)
+    .set({
+      confirmedCompanions: sql`${eventEstablishments.confirmedCompanions} - ${companions.length}`,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(eventEstablishments.id, input.participationId),
+        gte(eventEstablishments.confirmedCompanions, companions.length),
+      ),
+    );
+
+  const deleteCompanions = db
+    .delete(registrationCompanions)
+    .where(
+      and(
+        eq(registrationCompanions.registrationId, input.registrationId),
+        inArray(registrationCompanions.id, ids),
+      ),
+    );
+
+  await withConstraintTranslation(() => {
+    if (documents.length === 0) {
+      return db.batch([countUpdate, capacityUpdate, deleteCompanions]);
+    }
+
+    const documentMatch = or(
+      ...documents.map((companion) =>
+        and(
+          eq(registrationDocuments.documentType, companion.documentType as DocumentType),
+          eq(registrationDocuments.documentNumber, companion.documentNumber as string),
+        ),
+      ),
+    );
+
+    return db.batch([
+      countUpdate,
+      capacityUpdate,
+      deleteCompanions,
+      db
+        .update(registrationDocuments)
+        .set({ status: 'released', releasedAt: now, updatedAt: now })
+        .where(
+          and(
+            eq(registrationDocuments.registrationId, input.registrationId),
+            eq(registrationDocuments.role, 'companion'),
+            eq(registrationDocuments.status, 'active'),
+            documentMatch,
+          ),
+        ),
+    ]);
+  });
 }

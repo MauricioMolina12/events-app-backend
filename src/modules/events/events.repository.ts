@@ -2,7 +2,7 @@ import { and, count, desc, eq, or, sql, type SQL } from 'drizzle-orm';
 import type { Database } from '../../db/client';
 import { withConstraintTranslation } from '../../db/constraints';
 import { newId } from '../../db/helpers';
-import { events, type EventStatus } from '../../db/schema';
+import { events, type EventStatus, type RegistrationScope } from '../../db/schema';
 
 /**
  * Repositorio de eventos.
@@ -25,6 +25,9 @@ export interface CreateEventInput {
   capacity?: number;
   status?: EventStatus;
   createdBy?: string | null;
+  clientId?: string | null;
+  registrationScope?: RegistrationScope;
+  ticketDesign?: string | null;
 }
 
 export type UpdateEventInput = Partial<Omit<CreateEventInput, 'slug' | 'createdBy'>>;
@@ -36,6 +39,7 @@ export interface EventFilters {
   readonly search?: string;
   /** Dueño del evento. El panel del operador solo ve los que le asignaron. */
   readonly createdBy?: string;
+  readonly clientId?: string;
 }
 
 export interface ListEventsOptions extends EventFilters {
@@ -62,6 +66,10 @@ function filterConditions(filters: EventFilters): SQL[] {
 
   if (filters.createdBy !== undefined) {
     conditions.push(eq(events.createdBy, filters.createdBy));
+  }
+
+  if (filters.clientId !== undefined) {
+    conditions.push(eq(events.clientId, filters.clientId));
   }
 
   const search = filters.search?.trim().toLowerCase();
@@ -145,6 +153,9 @@ export async function insertEvent(
         capacity: input.capacity ?? 0,
         status: input.status ?? 'draft',
         createdBy: input.createdBy ?? null,
+        clientId: input.clientId ?? null,
+        registrationScope: input.registrationScope ?? 'per_venue',
+        ticketDesign: input.ticketDesign ?? null,
         createdAt: now,
         updatedAt: now,
       })

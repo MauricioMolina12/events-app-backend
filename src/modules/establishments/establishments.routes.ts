@@ -24,9 +24,8 @@ import {
 /**
  * Rutas del catalogo de sedes.
  *
- * Lectura para `admin` y `operator`. Crear sedes lo pueden `admin` y `operator`
- * (el dueno del evento arma su catalogo); actualizar o desactivar queda en el
- * administrador. Una sede no se borra: se desactiva (`status: inactive`), porque
+ * Lectura, alta y actualizacion para `admin` y `operator`. Una sede no se
+ * borra: se desactiva (`status: inactive`), porque
  * las participaciones, registros y accesos historicos la referencian.
  */
 
@@ -212,7 +211,7 @@ const updateEstablishmentRoute = createRoute({
   method: 'patch',
   path: '/establishments/{id}',
   tags: ['Establecimientos'],
-  middleware: [requireAuth, requireRole('admin')],
+  middleware: [requireAuth, requireRole('admin', 'operator')],
   summary: 'Actualiza un establecimiento',
   description: [
     'Modifica los campos indicados; los ausentes se mantienen y `null` limpia el',
@@ -235,7 +234,7 @@ const updateEstablishmentRoute = createRoute({
       content: { 'application/json': { schema: establishmentResponseSchema } },
     },
     401: errorResponse('Sin sesion activa.'),
-    403: errorResponse('La cuenta autenticada no es administradora.'),
+    403: errorResponse('La cuenta autenticada no es `admin` ni `operator`.'),
     404: errorResponse('El establecimiento no existe (`ESTABLISHMENT_NOT_FOUND`).'),
     422: errorResponse('El cuerpo no cumple el formato esperado.'),
   },

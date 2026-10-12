@@ -2,7 +2,7 @@ import { AppError } from '../../core/errors/app-error';
 import { ErrorCode } from '../../core/errors/error-codes';
 import { clampLimit, clampOffset, type PaginationLimits } from '../../core/http/pagination';
 import type { Database } from '../../db/client';
-import type { EventStatus } from '../../db/schema';
+import type { EventStatus, RegistrationScope } from '../../db/schema';
 import { sumAllocatedEventCapacity } from '../participations/participations.repository';
 import { EVENT_CAPACITY_MAX, assertWithinEventCapacity } from './event-capacity';
 import {
@@ -63,6 +63,9 @@ export interface CreateEventCommand extends EventWindowInput {
   readonly capacity: number;
   readonly status?: EventStatus;
   readonly createdBy?: string | null;
+  readonly clientId?: string | null;
+  readonly registrationScope?: RegistrationScope;
+  readonly ticketDesign?: string | null;
 }
 
 export interface UpdateEventCommand extends EventWindowInput {
@@ -72,12 +75,15 @@ export interface UpdateEventCommand extends EventWindowInput {
   readonly timezone?: string;
   readonly capacity?: number;
   readonly status?: EventStatus;
+  readonly registrationScope?: RegistrationScope;
+  readonly ticketDesign?: string | null;
 }
 
 export interface EventListQuery {
   readonly status?: EventStatus;
   readonly search?: string;
   readonly createdBy?: string;
+  readonly clientId?: string;
   readonly limit?: number;
   readonly offset?: number;
 }
@@ -102,7 +108,12 @@ export async function listEventCatalog(
 ): Promise<EventPage> {
   const limit = clampLimit(query.limit, EVENT_PAGE_LIMITS);
   const offset = clampOffset(query.offset);
-  const filters = { status: query.status, search: query.search, createdBy: query.createdBy };
+  const filters = {
+    status: query.status,
+    search: query.search,
+    createdBy: query.createdBy,
+    clientId: query.clientId,
+  };
 
   const [items, total] = await Promise.all([
     listEvents(db, { ...filters, limit, offset }),
@@ -163,6 +174,9 @@ export async function createEvent(
       capacity: command.capacity,
       status,
       createdBy: command.createdBy ?? null,
+      clientId: command.clientId ?? null,
+      registrationScope: command.registrationScope ?? 'per_venue',
+      ticketDesign: command.ticketDesign ?? null,
     },
     now,
   );
@@ -338,6 +352,12 @@ function changesOf(command: UpdateEventCommand): UpdateEventInput {
   }
   if (command.capacity !== undefined) {
     changes.capacity = command.capacity;
+  }
+  if (command.registrationScope !== undefined) {
+    changes.registrationScope = command.registrationScope;
+  }
+  if (command.ticketDesign !== undefined) {
+    changes.ticketDesign = command.ticketDesign;
   }
 
   return changes;

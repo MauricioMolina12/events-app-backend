@@ -5,6 +5,7 @@ import type { AppEnv } from '../../core/types/context';
 import { createDb } from '../../db/client';
 import { REGISTRATION_STATUSES } from '../../db/schema';
 import { requireAuth, requireRole } from '../auth/auth.middleware';
+import { notifyRegistrationCreated, scheduleMail } from '../mail/notify';
 import {
   REGISTRATION_LIST_DEFAULT_LIMIT,
   REGISTRATION_LIST_MAX_LIMIT,
@@ -213,6 +214,19 @@ const createRegistrationHandler: RouteHandler<typeof createRegistrationRoute, Ap
       source: 'admin',
     },
   );
+
+  if (detail.qrCodeId !== undefined) {
+    scheduleMail(
+      c,
+      notifyRegistrationCreated(c.env, {
+        registrationId: detail.registration.id,
+        email: detail.registration.email,
+        fullName: detail.registration.fullName,
+        qrCodeId: detail.qrCodeId,
+        participationId: detail.registration.participationId,
+      }),
+    );
+  }
 
   return c.json(
     apiSuccess({

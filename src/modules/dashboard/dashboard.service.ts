@@ -125,6 +125,13 @@ export interface OverviewEvent {
   readonly people: number;
   readonly checkedIn: number;
   readonly attendanceRate: number;
+  readonly capacity: number;
+  readonly companions: number;
+  readonly available: number;
+  /** 0 a 100. Se queda bajo 100 si aun hay cupo. */
+  readonly occupancy: number;
+  readonly occupancyLevel: 'unassigned' | 'normal' | 'high' | 'critical' | 'full';
+  readonly client: { readonly id: string; readonly slug: string; readonly displayName: string } | null;
 }
 
 export interface Overview {
@@ -136,10 +143,33 @@ export interface Overview {
   };
   /** Ordenados por relevancia: en curso, abiertos, proximos, finalizados, borradores, archivados. */
   readonly items: readonly OverviewEvent[];
+  /** Nulo para un operador: el total de clientes es una metrica de la plataforma. */
+  readonly clients: { readonly total: number } | null;
 }
 
 export function attendanceRate(checkedIn: number, titulares: number): number {
   return titulares === 0 ? 0 : Math.round((checkedIn / titulares) * 10_000) / 10_000;
+}
+
+export type OccupancyLevel = OverviewEvent['occupancyLevel'];
+
+/** Aforo del evento: personas confirmadas (titular + acompanantes) contra `events.capacity`. */
+export function eventCapacityUse(
+  people: number,
+  capacity: number,
+): Pick<OverviewEvent, 'available' | 'occupancy' | 'occupancyLevel'> {
+  if (capacity <= 0) {
+    return { available: 0, occupancy: 0, occupancyLevel: 'unassigned' };
+  }
+  const available = Math.max(0, capacity - people);
+  if (available === 0) {
+    return { available: 0, occupancy: 100, occupancyLevel: 'full' };
+  }
+  const occupancy = Math.min(99.9, Math.round((people / capacity) * 1000) / 10);
+  const ratio = people / capacity;
+  const occupancyLevel: OccupancyLevel =
+    ratio >= 0.9 ? 'critical' : ratio >= 0.7 ? 'high' : 'normal';
+  return { available, occupancy, occupancyLevel };
 }
 
 function relevance(left: OverviewEvent, right: OverviewEvent): number {
@@ -154,8 +184,15 @@ function relevance(left: OverviewEvent, right: OverviewEvent): number {
   return leftAt === rightAt ? left.name.localeCompare(right.name) : (leftAt - rightAt) * finished;
 }
 
-export async function getOverview(db: Database, now: Date = new Date()): Promise<Overview> {
-  const [rows, sedes] = await Promise.all([eventOverviewRows(db), eventSedeRows(db)]);
+export async function getOverview(
+  db: Database,
+  options: { readonly clientId?: string; readonly clientCount?: number } = {},
+  now: Date = new Date(),
+): Promise<Overview> {
+  const [rows, sedes] = await Promise.all([
+    eventOverviewRows(db, options.clientId),
+    eventSedeRows(db),
+  ]);
 
   const sedesByEvent = new Map<string, { participationId: string; name: string }[]>();
   for (const sede of sedes) {
@@ -183,6 +220,13 @@ export async function getOverview(db: Database, now: Date = new Date()): Promise
       people: row.titulares + row.companions,
       checkedIn: row.checkedIn,
       attendanceRate: attendanceRate(row.checkedIn, row.titulares),
+      capacity: row.capacity,
+      companions: row.companions,
+      ...eventCapacityUse(row.titulares + row.companions, row.capacity),
+      client:
+        row.clientId && row.clientSlug && row.clientName
+          ? { id: row.clientId, slug: row.clientSlug, displayName: row.clientName }
+          : null,
     };
   });
 
@@ -195,6 +239,7 @@ export async function getOverview(db: Database, now: Date = new Date()): Promise
       byStatus,
     },
     items: items.slice(0, OVERVIEW_EVENT_LIMIT),
+    clients: options.clientCount === undefined ? null : { total: options.clientCount },
   };
 }
 
@@ -336,9 +381,9 @@ export function buildTimeline(rows: readonly HourBucketRow[], timezone: string):
   return { timezone, granularity, total, buckets };
 }
 
-async function requireScope(db: Database, scope: ScopeFilter) {
+async function requireScope(db: Database, scope: ScopeFilter, clientId?: string) {
   const event = await findEventAudit(db, scope.eventId);
-  if (event === null) {
+  if (event === null || (clientId !== undefined && event.clientId !== clientId)) {
     throw AppError.notFound(ErrorCode.EVENT_NOT_FOUND, 'El evento no existe.');
   }
   if (
@@ -354,8 +399,9 @@ export async function getRegistrationTimeline(
   db: Database,
   scope: ScopeFilter,
   now: Date = new Date(),
+  clientId?: string,
 ): Promise<Timeline> {
-  const event = await requireScope(db, scope);
+  const event = await requireScope(db, scope, clientId);
   const rows = await registrationHourBuckets(db, scope, new Date(now.getTime() - DAY_MS));
   return {
     ...buildTimeline(rows, event.timezone),
@@ -389,8 +435,9 @@ export async function getRecentActivity(
   db: Database,
   scope: ScopeFilter,
   limit: number,
+  clientId?: string,
 ): Promise<ActivityItem[]> {
-  const event = await requireScope(db, scope);
+  const event = await requireScope(db, scope, clientId);
   const [registered, checkedIn] = await Promise.all([
     recentRegistrations(db, scope, limit),
     recentCheckIns(db, scope, limit),

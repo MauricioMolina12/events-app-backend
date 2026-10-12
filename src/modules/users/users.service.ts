@@ -6,6 +6,7 @@ import type { Database } from '../../db/client';
 import type { UserRole, UserStatus } from '../../db/schema';
 import { normalizeEmail, revokeAllSessions } from '../auth/auth.service';
 import { hashPassword } from '../auth/password';
+import { ensureClientForOperator, syncClientStatus } from '../clients/clients.service';
 import {
   clearUserLockout,
   countActiveAdmins,
@@ -47,6 +48,8 @@ export interface CreateUserCommand {
   readonly password: string;
   readonly role?: UserRole;
   readonly status?: UserStatus;
+  /** Si es `true`, no se crea un cliente propio (colaboradores de otro espacio). */
+  readonly skipClient?: boolean;
 }
 
 export interface UpdateUserCommand {
@@ -151,7 +154,7 @@ export async function createUser(
   validatePassword(command.password);
   const digest = await hashPassword(command.password, { iterations: config.pbkdf2Iterations });
 
-  return insertUser(
+  const created = await insertUser(
     db,
     {
       email: normalizeEmail(command.email),
@@ -162,6 +165,19 @@ export async function createUser(
     },
     now,
   );
+  if (created.role === 'operator' && command.skipClient !== true) {
+    await ensureClientForOperator(
+      db,
+      {
+        id: created.id,
+        email: created.email,
+        fullName: created.fullName,
+        status: created.status,
+      },
+      now,
+    );
+  }
+  return created;
 }
 
 /**
@@ -205,6 +221,9 @@ export async function updateUser(
 
   if (updated.status === 'disabled' && user.status !== 'disabled') {
     await revokeAllSessions(db, updated.id, 'user_disabled', now);
+  }
+  if (updated.role === 'operator' && updated.status !== user.status) {
+    await syncClientStatus(db, updated.id, updated.status, now);
   }
 
   return updated;

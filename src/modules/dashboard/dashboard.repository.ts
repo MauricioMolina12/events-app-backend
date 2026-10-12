@@ -2,6 +2,7 @@ import { and, asc, count, desc, eq, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 import type { Database } from '../../db/client';
 import {
+  clients,
   establishments,
   eventEstablishments,
   events,
@@ -34,6 +35,10 @@ export interface EventOverviewRow {
   readonly registrationOpensAt: Date | null;
   readonly registrationClosesAt: Date | null;
   readonly createdAt: Date;
+  readonly capacity: number;
+  readonly clientId: string | null;
+  readonly clientSlug: string | null;
+  readonly clientName: string | null;
   readonly titulares: number;
   readonly companions: number;
   readonly checkedIn: number;
@@ -46,7 +51,10 @@ export interface EventSedeRow {
 }
 
 /** Un evento por fila con sus totales; incluye los eventos sin sedes ni inscripciones. */
-export async function eventOverviewRows(db: Database): Promise<EventOverviewRow[]> {
+export async function eventOverviewRows(
+  db: Database,
+  clientId?: string,
+): Promise<EventOverviewRow[]> {
   const rows = await db
     .select({
       id: events.id,
@@ -59,11 +67,16 @@ export async function eventOverviewRows(db: Database): Promise<EventOverviewRow[
       registrationOpensAt: events.registrationOpensAt,
       registrationClosesAt: events.registrationClosesAt,
       createdAt: events.createdAt,
+      capacity: events.capacity,
+      clientId: clients.id,
+      clientSlug: clients.slug,
+      clientName: clients.displayName,
       titulares: count(registrations.id),
       companions: sql<number>`coalesce(sum(${registrations.companionsCount}), 0)`,
       checkedIn: count(holderTurn.id),
     })
     .from(events)
+    .leftJoin(clients, eq(clients.id, events.clientId))
     .leftJoin(eventEstablishments, eq(eventEstablishments.eventId, events.id))
     .leftJoin(
       registrations,
@@ -76,6 +89,7 @@ export async function eventOverviewRows(db: Database): Promise<EventOverviewRow[
       holderTurn,
       and(eq(holderTurn.registrationId, registrations.id), eq(holderTurn.position, 0)),
     )
+    .where(clientId === undefined ? undefined : eq(events.clientId, clientId))
     .groupBy(events.id);
 
   return rows.map((row) => ({ ...row, companions: Number(row.companions) }));
@@ -226,6 +240,7 @@ export interface EventAuditRow {
   readonly createdAt: Date;
   readonly updatedAt: Date;
   readonly creatorName: string | null;
+  readonly clientId: string | null;
 }
 
 export async function findEventAudit(db: Database, eventId: string): Promise<EventAuditRow | null> {
@@ -237,6 +252,7 @@ export async function findEventAudit(db: Database, eventId: string): Promise<Eve
       createdAt: events.createdAt,
       updatedAt: events.updatedAt,
       creatorName: users.fullName,
+      clientId: events.clientId,
     })
     .from(events)
     .leftJoin(users, eq(users.id, events.createdBy))

@@ -15,15 +15,19 @@ import {
   publicRegistrationReceiptSchema,
   toPublicRegistrationReceipt,
 } from './public.schemas';
+import { notifyRegistrationCreated, scheduleMail } from '../mail/notify';
 import {
   PUBLIC_EVENT_LIST_DEFAULT_LIMIT,
   PUBLIC_EVENT_LIST_MAX_LIMIT,
   addPublicCompanions,
   getPublicEvent,
   getPublicRegistration,
+  listPublicClientDirectory,
+  listPublicClientEvents,
   listPublicEvents,
   lookupHolderRegistration,
   registerPublicAttendance,
+  searchPublicRegistrations,
 } from './public.service';
 
 /**
@@ -200,6 +204,19 @@ const createPublicRegistrationHandler: RouteHandler<
     companions: body.companions,
   });
 
+  if (detail.qrCodeId !== undefined) {
+    scheduleMail(
+      c,
+      notifyRegistrationCreated(c.env, {
+        registrationId: detail.registration.id,
+        email: detail.registration.email,
+        fullName: detail.registration.fullName,
+        qrCodeId: detail.qrCodeId,
+        participationId: detail.registration.participationId,
+      }),
+    );
+  }
+
   return c.json(apiSuccess(toPublicRegistrationReceipt(detail.registration, detail.qrToken)), 201);
 };
 
@@ -332,12 +349,137 @@ const addPublicCompanionsHandler: RouteHandler<typeof addPublicCompanionsRoute, 
   );
 };
 
+const searchPublicRegistrationsRoute = createRoute({
+  method: 'post',
+  path: '/public/registrations/search',
+  tags: ['Publico'],
+  summary: 'Busca una inscripcion por nombre, cedula o folio',
+  request: {
+    body: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: z.object({
+            event: z.string().trim().min(1),
+            query: z.string().trim().min(2).max(120),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Coincidencias publicas del evento.',
+      content: { 'application/json': { schema: z.object({ success: z.literal(true), data: z.array(publicRegistrationReceiptSchema) }) } },
+    },
+    404: errorResponse('El evento no existe.'),
+  },
+});
+
+const searchPublicRegistrationsHandler: RouteHandler<
+  typeof searchPublicRegistrationsRoute,
+  AppEnv
+> = async (c) => {
+  const body = c.req.valid('json');
+  const details = await searchPublicRegistrations(createDb(c.env), body);
+  return c.json(
+    apiSuccess(details.map((detail) => toPublicRegistrationReceipt(detail.registration))),
+    200,
+  );
+};
+
 /** Registra las rutas publicas (sin sesion) del catalogo y del registro. */
 export function registerPublicRoutes(app: OpenAPIHono<AppEnv>): void {
+  app.openapi(listPublicClientsRoute, listPublicClientsHandler);
+  app.openapi(listClientEventsRoute, listClientEventsHandler);
   app.openapi(listPublicEventsRoute, listPublicEventsHandler);
   app.openapi(getPublicEventRoute, getPublicEventHandler);
   app.openapi(createPublicRegistrationRoute, createPublicRegistrationHandler);
   app.openapi(lookupHolderRegistrationRoute, lookupHolderRegistrationHandler);
+  app.openapi(searchPublicRegistrationsRoute, searchPublicRegistrationsHandler);
   app.openapi(addPublicCompanionsRoute, addPublicCompanionsHandler);
   app.openapi(getPublicRegistrationRoute, getPublicRegistrationHandler);
 }
+
+const publicClientSchema = z
+  .object({
+    id: z.string(),
+    slug: z.string(),
+    displayName: z.string(),
+    nameCustomized: z.boolean(),
+    primaryColor: z.string(),
+    colorCustomized: z.boolean(),
+    status: z.enum(['active', 'disabled']),
+  })
+  .openapi('PublicClient');
+
+const listPublicClientsRoute = createRoute({
+  method: 'get',
+  path: '/public/clients',
+  tags: ['Publico'],
+  summary: 'Espacios de cliente con catalogo publico',
+  responses: {
+    200: {
+      description: 'Clientes activos. No incluye correos ni datos de cuentas.',
+      content: {
+        'application/json': {
+          schema: z.object({ success: z.literal(true), data: z.array(publicClientSchema) }),
+        },
+      },
+    },
+  },
+});
+
+const listClientEventsRoute = createRoute({
+  method: 'get',
+  path: '/public/clients/{slug}/events',
+  tags: ['Publico'],
+  summary: 'Eventos publicados de un cliente',
+  request: {
+    params: z.object({
+      slug: z.string().min(1).openapi({ param: { name: 'slug', in: 'path' } }),
+    }),
+    query: z.object({
+      search: z.string().optional(),
+      limit: z.coerce.number().int().min(1).max(PUBLIC_EVENT_LIST_MAX_LIMIT).optional(),
+      offset: z.coerce.number().int().min(0).optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: 'Pagina de eventos de ese cliente.',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.literal(true),
+            data: z.array(publicEventSchema),
+            meta: z.object({
+              total: z.number().int(),
+              limit: z.number().int(),
+              offset: z.number().int(),
+            }),
+          }),
+        },
+      },
+    },
+    404: errorResponse('El cliente no existe.'),
+  },
+});
+
+const listPublicClientsHandler: RouteHandler<typeof listPublicClientsRoute, AppEnv> = async (c) => {
+  const rows = await listPublicClientDirectory(createDb(c.env));
+  return c.json(apiSuccess(rows), 200);
+};
+
+const listClientEventsHandler: RouteHandler<typeof listClientEventsRoute, AppEnv> = async (c) => {
+  const query = c.req.valid('query');
+  const page = await listPublicClientEvents(createDb(c.env), c.req.valid('param').slug, query);
+  return c.json(
+    apiSuccess([...page.items], {
+      total: page.total,
+      limit: page.limit,
+      offset: page.offset,
+    }),
+    200,
+  );
+};

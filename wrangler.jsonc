@@ -19,7 +19,9 @@
 		"SESSION_TTL_HOURS": "12",
 		"SESSION_COOKIE_NAME": "events_session",
 		"AUTH_MAX_FAILED_ATTEMPTS": "5",
-		"AUTH_LOCKOUT_MINUTES": "15"
+		"AUTH_LOCKOUT_MINUTES": "15",
+		"PUBLIC_APP_URL": "http://localhost:4200",
+		"MAIL_FROM": "Star Grow Studio <onboarding@resend.dev>"
 	},
 	"d1_databases": [
 		{
@@ -35,12 +37,14 @@
 			"name": "events-development",
 			"vars": {
 				"ENVIRONMENT": "development",
-				"CORS_ORIGINS": "http://localhost:4200,http://localhost:5173,http://localhost:8788,https://grow-events-star-grow-studio.vercel.app",
+				"CORS_ORIGINS": "http://localhost:4200,http://localhost:5173,http://localhost:8788,https://stargrowstudio.vercel.app,https://grow-events-star-grow-studio.vercel.app",
 				"PBKDF2_ITERATIONS": "100000",
 				"SESSION_TTL_HOURS": "12",
 				"SESSION_COOKIE_NAME": "events_session",
 				"AUTH_MAX_FAILED_ATTEMPTS": "5",
-				"AUTH_LOCKOUT_MINUTES": "15"
+				"AUTH_LOCKOUT_MINUTES": "15",
+				"PUBLIC_APP_URL": "https://stargrowstudio.vercel.app",
+				"MAIL_FROM": "Star Grow Studio <onboarding@resend.dev>"
 			},
 			"d1_databases": [
 				{
@@ -60,7 +64,9 @@
 				"SESSION_TTL_HOURS": "12",
 				"SESSION_COOKIE_NAME": "events_session",
 				"AUTH_MAX_FAILED_ATTEMPTS": "5",
-				"AUTH_LOCKOUT_MINUTES": "15"
+				"AUTH_LOCKOUT_MINUTES": "15",
+				"PUBLIC_APP_URL": "https://stargrowstudio.vercel.app",
+				"MAIL_FROM": "Star Grow Studio <onboarding@resend.dev>"
 			},
 			"d1_databases": [
 				{

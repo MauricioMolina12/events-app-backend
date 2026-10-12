@@ -105,9 +105,20 @@ async function register(
 }
 
 async function scan(cookie: string, code: string): Promise<void> {
-  const response = await api('/check-in/scan', cookie, {
+  const preview = await api('/check-in/lookup', cookie, {
     method: 'POST',
     body: JSON.stringify({ code }),
+  });
+  expect(preview.status).toBe(200);
+  const companions = (await preview.json<{ data: { companions: { id: string }[] } }>()).data
+    .companions;
+  const response = await api('/check-in/scan', cookie, {
+    method: 'POST',
+    body: JSON.stringify({
+      code,
+      holderPresent: true,
+      presentCompanionIds: companions.map((companion) => companion.id),
+    }),
   });
   expect(response.status).toBe(200);
 }

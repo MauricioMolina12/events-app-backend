@@ -12,3 +12,5 @@ export * from './qr';
 export * from './access';
 export * from './capacity';
 export * from './workspace';
+export * from './clients';
+export * from './collaborators';
